@@ -1,0 +1,26 @@
+# AstrBot 插件元数据
+name: astrbot_plugin_broadcast
+display_name: 艾珀莉亚的QQ广播助手
+short_desc: 定时群发 / 启动通知 / 指令广播
+desc: |
+  QQ 平台（NapCat / OneBot v11 与 QQ 官方机器人）广播助手插件，支持：
+
+  1. 定时群发：在配置的时间（24 时制）自动向白名单群聊发送预设内容，可开关；
+  2. 启动通知：机器人启动后，自动向已知群聊发送预设通知，可开关；
+  3. 指令广播：通过 /广播 指令向白名单内的指定群聊或个人发送指定消息；
+  4. 群聊列表：通过 /群聊列表 查看本地缓存（KV）里记录过的群聊。
+
+  配置均在 WebUI 插件配置中完成，无需修改代码。
+version: 1.1.0
+author: 艾珀莉亚
+repo: https://github.com/FionaFaust/astrbot_plugin_broadcast
+astrbot_version: ">=4.16"
+support_platforms:
+  - aiocqhttp
+  - qq_official
+  - qq_official_webhook
+tags:
+  - broadcast
+  - qq
+  - notification
+  - timer

@@ -1,0 +1,212 @@
+{
+  "enable": {
+    "description": "启用插件",
+    "hint": "关闭后不再执行定时压缩、紧急压缩与面板 API。",
+    "type": "bool",
+    "default": true
+  },
+  "compress_provider_id": {
+    "description": "压缩使用的对话模型",
+    "hint": "从已添加的对话模型中选择；留空则使用当前会话的对话模型。",
+    "type": "string",
+    "_special": "select_provider",
+    "default": ""
+  },
+  "embedding_provider_id": {
+    "description": "向量检索使用的 Embedding 模型",
+    "hint": "留空则记忆检索退化为关键词匹配；也可在「记忆面板 → 设置」里下拉选择。",
+    "type": "string",
+    "default": ""
+  },
+  "rerank_provider_id": {
+    "description": "向量检索使用的 Rerank 模型（可选）",
+    "hint": "可在「记忆面板 → 设置」里下拉选择。",
+    "type": "string",
+    "default": ""
+  },
+  "db_type": {
+    "description": "数据库类型",
+    "hint": "follow_core 表示跟随 AstrBot 主库；选 mysql 时使用下面的 MySQL 连接参数（需重启生效）。",
+    "type": "string",
+    "options": ["follow_core", "sqlite", "mysql"],
+    "default": "follow_core"
+  },
+  "sqlite_path": {
+    "description": "SQLite 路径（db_type=sqlite 时生效）",
+    "hint": "留空表示使用 AstrBot 主库 data/data_v4.db。",
+    "type": "string",
+    "default": ""
+  },
+  "mysql_host": {
+    "description": "MySQL 主机",
+    "type": "string",
+    "default": ""
+  },
+  "mysql_port": {
+    "description": "MySQL 端口",
+    "type": "int",
+    "default": 3306
+  },
+  "mysql_user": {
+    "description": "MySQL 用户名",
+    "type": "string",
+    "default": ""
+  },
+  "mysql_password": {
+    "description": "MySQL 密码",
+    "type": "string",
+    "default": "",
+    "secret": true
+  },
+  "mysql_database": {
+    "description": "MySQL 数据库名",
+    "type": "string",
+    "default": ""
+  },
+  "mysql_charset": {
+    "description": "MySQL 字符集",
+    "type": "string",
+    "default": "utf8mb4"
+  },
+  "session_scope": {
+    "description": "生效会话范围",
+    "hint": "可选 all / whitelist / blacklist。",
+    "type": "string",
+    "default": "all"
+  },
+  "scope_list": {
+    "description": "范围名单",
+    "hint": "当 session_scope 为 whitelist / blacklist 时生效，填写 UMO（如 aiocqhttp:GroupMessage:123456）。",
+    "type": "list",
+    "default": []
+  },
+  "group_compress_enable": {
+    "description": "压缩群聊会话",
+    "type": "bool",
+    "default": true
+  },
+  "private_compress_enable": {
+    "description": "压缩私聊会话",
+    "type": "bool",
+    "default": true
+  },
+  "keep_recent_turns": {
+    "description": "保留最近轮数（不压缩）",
+    "hint": "每次压缩时始终保留最近 N 轮原始对话，只压缩更早的部分。",
+    "type": "int",
+    "default": 6
+  },
+  "archive_enable": {
+    "description": "归档被丢弃的原文",
+    "hint": "开启后原文写入归档表（冷备份），可通过面板恢复。",
+    "type": "bool",
+    "default": true
+  },
+  "summary_ttl_days": {
+    "description": "短期记忆（每日记忆）保留天数",
+    "type": "int",
+    "default": 3
+  },
+  "long_term_ttl_days": {
+    "description": "长期记忆（每周记忆）保留天数",
+    "type": "int",
+    "default": 30
+  },
+  "max_context_tokens": {
+    "description": "单会话上下文 Token 上限",
+    "hint": "超过该上限会触发压缩；<=0 表示不限制。",
+    "type": "int",
+    "default": 200000
+  },
+  "emergency_threshold_ratio": {
+    "description": "紧急压缩触发比例",
+    "hint": "上下文达到 上限 × 该比例 时立即触发压缩（如 0.9 表示 18 万 token）。",
+    "type": "float",
+    "default": 0.9
+  },
+  "offpeak_start": {
+    "description": "低谷时段开始（HH:MM）",
+    "hint": "DeepSeek 错峰优惠时段默认 00:30 开始。",
+    "type": "string",
+    "default": "00:30"
+  },
+  "offpeak_end": {
+    "description": "低谷时段结束（HH:MM）",
+    "hint": "DeepSeek 错峰优惠时段默认 08:30 结束。",
+    "type": "string",
+    "default": "08:30"
+  },
+  "defer_if_offpeak_within_minutes": {
+    "description": "临近低谷时的等待分钟数",
+    "hint": "紧急压缩时，若距离低谷时段开始不足该分钟数，则等待低谷再压缩（仅做无损上限保护）。",
+    "type": "int",
+    "default": 30
+  },
+  "incremental_cron": {
+    "description": "增量压缩 cron 表达式",
+    "type": "string",
+    "default": "0 */2 * * *"
+  },
+  "global_cron": {
+    "description": "每日全局压缩 cron 表达式",
+    "hint": "默认在低谷时段开始执行全局压缩与到期清理。",
+    "type": "string",
+    "default": "30 0 * * *"
+  },
+  "weekly_cron": {
+    "description": "每周长期记忆生成 cron 表达式",
+    "type": "string",
+    "default": "0 1 * * 1"
+  },
+  "timezone": {
+    "description": "调度时区",
+    "type": "string",
+    "default": "Asia/Shanghai"
+  },
+  "summary_instruction": {
+    "description": "摘要生成系统提示词",
+    "type": "text",
+    "default": "You are a long-term memory engine. Compress the transcript into a concise, structured memory. Keep facts, entities, user preferences, decisions, unresolved tasks and emotional tone. Merge with the existing summary when provided. Never invent facts. Write in the transcript's language."
+  },
+  "memory_tool_enable": {
+    "description": "启用长期记忆检索工具",
+    "hint": "以 LLM 工具形式提供，AI 按需调用，不会自动注入上下文。",
+    "type": "bool",
+    "default": true
+  },
+  "daily_memory_tool_enable": {
+    "description": "启用每日记忆检索工具",
+    "hint": "每日记忆仅存数据库、不自动注入；开启后 AI 可通过 search_daily_memory 按需调取。",
+    "type": "bool",
+    "default": true
+  },
+  "long_term_enable": {
+    "description": "启用长期记忆",
+    "hint": "关闭后不再维护每个会话的长期记忆。",
+    "type": "bool",
+    "default": true
+  },
+  "long_term_inject_enable": {
+    "description": "长期记忆注入上下文",
+    "hint": "开启后每次请求都会把该会话的长期记忆注入 system 区。",
+    "type": "bool",
+    "default": true
+  },
+  "long_term_inject_tokens": {
+    "description": "长期记忆注入 Token 上限",
+    "hint": "超过该估算上限的长期记忆会被截断，避免占满上下文；0 表示不限制。",
+    "type": "int",
+    "default": 1500
+  },
+  "long_term_max_chars": {
+    "description": "长期记忆最大字符数",
+    "hint": "滚动长期记忆合并后的硬上限。",
+    "type": "int",
+    "default": 4000
+  },
+  "tool_result_limit": {
+    "description": "记忆检索返回条数",
+    "type": "int",
+    "default": 5
+  }
+}

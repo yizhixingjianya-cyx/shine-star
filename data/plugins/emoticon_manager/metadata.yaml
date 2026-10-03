@@ -1,0 +1,11 @@
+name: emoticon_manager
+desc: 一个简单的表情包插件，支持情感匹配与 WebUI 管理编辑表情包。
+display_name: 情绪表情包
+short_desc: 简单表情包插件，支持情感匹配与 WebUI 管理
+version: v1.1.0
+author: "@bilibili彩凌"
+repo: ""
+license: MIT
+support_platforms:
+  - aiocqhttp
+astrbot_version: ">=4.24.2"

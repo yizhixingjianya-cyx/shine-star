@@ -1,0 +1,8 @@
+name: astrbot_plugin_qq_proactive_md
+desc: 把 QQ 官方机器人独有的原生 Markdown、消息按钮（keyboard）、Ark 卡片与主动推送能力封装为大模型可调用的 AstrBot 工具（qq_send_markdown / qq_send_ark / qq_get_session_info）。
+author: Trae
+version: 1.0.0
+repo: ""
+display_name: QQ 原生 MD 工具
+short_desc: 让 AI 直接发送 QQ 原生 Markdown、按钮与 Ark 卡片。
+astrbot_version: ">=4.5.1"

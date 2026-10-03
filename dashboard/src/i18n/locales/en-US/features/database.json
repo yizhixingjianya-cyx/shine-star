@@ -1,0 +1,41 @@
+{
+  "page": {
+    "title": "Database",
+    "subtitle": "Configure the global database used by the whole bot. A restart is required after switching."
+  },
+  "actions": {
+    "refresh": "Refresh",
+    "save": "Save",
+    "test": "Test connection"
+  },
+  "sections": {
+    "backend": "Current backend",
+    "backendHint": "The database connection AstrBot is currently using (password masked).",
+    "settings": "Global database settings",
+    "settingsHint": "SQLite uses a local file and suits single-node setups; MySQL / MariaDB suits multi-instance or external storage."
+  },
+  "status": {
+    "currentDialect": "Database type",
+    "currentUrl": "Connection URL",
+    "memoryTables": "Memory tables"
+  },
+  "fields": {
+    "type": "Database type",
+    "host": "Host",
+    "port": "Port",
+    "user": "User",
+    "password": "Password",
+    "passwordKeepHint": "Leave empty to keep the stored password",
+    "database": "Database name",
+    "charset": "Charset"
+  },
+  "types": {
+    "sqlite": "SQLite (local file, default)",
+    "mysql": "MySQL / MariaDB"
+  },
+  "messages": {
+    "saved": "Saved",
+    "testOk": "Connection succeeded",
+    "restartRequired": "The config selects MySQL but AstrBot is still running on SQLite. Restart AstrBot to apply."
+  }
+}

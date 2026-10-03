@@ -1,0 +1,33 @@
+{
+  "furry_will_base_url": {
+    "description": "每日鉴毛 API 地址（默认 https://mrjm.fur-bot.com）",
+    "type": "string",
+    "default": "https://mrjm.fur-bot.com"
+  },
+  "furry_will_jwt_secret": {
+    "description": "每日鉴毛 JWT 密钥（与 NoneBot config.yaml 的 furry_will.jwt_secret 一致）",
+    "type": "string",
+    "default": "",
+    "secret": true
+  },
+  "furry_will_jwt_qq": {
+    "description": "每日鉴毛绑定 QQ（用于生成 JWT，与 furry_will.jwt_qq 一致）",
+    "type": "string",
+    "default": ""
+  },
+  "image_host_url": {
+    "description": "本地图床对外地址，形如 http://1.2.3.4:11452（公网可访问、指向本机图床服务）。留空则回落为直接发送图片 URL 组件。",
+    "type": "string",
+    "default": ""
+  },
+  "image_host_port": {
+    "description": "本地图床静态服务监听端口（默认 11452）",
+    "type": "int",
+    "default": 11452
+  },
+  "image_host_bind": {
+    "description": "本地图床静态服务监听地址（默认 0.0.0.0；端口直通必须全网卡）",
+    "type": "string",
+    "default": "0.0.0.0"
+  }
+}

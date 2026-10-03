@@ -1,0 +1,13 @@
+{
+  "app_id": {
+    "description": "QQ 官方机器人 AppID（Key）。留空时以面板里填写的为准。",
+    "type": "string",
+    "default": ""
+  },
+  "app_secret": {
+    "description": "QQ 官方机器人 AppSecret（Token）。留空时以面板里填写的为准。",
+    "type": "string",
+    "default": "",
+    "secret": true
+  }
+}

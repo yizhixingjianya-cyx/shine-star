@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>指令上传面板</title>
+    <style>
+      :root {
+        --bg: #f7f8fa;
+        --card: #ffffff;
+        --text: #1f2329;
+        --muted: #8a8f99;
+        --border: #e5e6eb;
+        --accent: #3b82f6;
+        --danger: #ef4444;
+      }
+      [data-theme="dark"] {
+        --bg: #1a1a1c;
+        --card: #26272b;
+        --text: #e8e8ea;
+        --muted: #9a9aa0;
+        --border: #3a3b40;
+        --accent: #60a5fa;
+        --danger: #f87171;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 20px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "PingFang SC", "Microsoft YaHei", sans-serif;
+        font-size: 14px;
+      }
+      h2 { margin: 0 0 4px; font-size: 18px; }
+      .hint { color: var(--muted); font-size: 12px; margin-bottom: 16px; line-height: 1.6; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      .card > h3 { margin: 0 0 12px; font-size: 15px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+      label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+      input[type="text"], input[type="password"], textarea, select {
+        width: 100%;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 13px;
+        outline: none;
+      }
+      .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+      button {
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button:disabled { opacity: 0.55; cursor: not-allowed; }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button.danger { color: var(--danger); border-color: var(--danger); }
+      .stats { color: var(--muted); font-size: 13px; margin-right: auto; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+      th { font-size: 12px; color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--card); }
+      td.name { font-family: ui-monospace, monospace; white-space: nowrap; }
+      td input[type="text"] { min-width: 90px; }
+      .alias { color: var(--muted); font-size: 12px; }
+      .plugin { font-size: 12px; color: var(--muted); }
+      .scroll { max-height: 520px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+      .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+      .toast {
+        position: fixed; right: 20px; bottom: 20px; max-width: 420px;
+        background: var(--card); border: 1px solid var(--border); border-left-width: 4px;
+        border-radius: 10px; padding: 12px 14px; font-size: 13px; white-space: pre-wrap;
+        box-shadow: 0 6px 24px rgba(0,0,0,.12); display: none; z-index: 999;
+      }
+      .toast.ok { border-left-color: #22c55e; }
+      .toast.err { border-left-color: var(--danger); }
+      .badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+      .badge.off { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+    </style>
+  </head>
+  <body>
+    <h2>指令上传面板</h2>
+    <div class="hint">
+      读取本机 AstrBot 里所有插件注册的指令，填写 QQ 官方机器人 <b>AppID（Key）</b> 与
+      <b>AppSecret（Token）</b>，勾选要上传的指令后点击「保存并上传」才会推送到 QQ 平台。
+      <b>本插件不会主动上传</b>，所有操作都由你手动触发；配置持久化保存在服务器上。
+    </div>
+
+    <!-- 凭据 -->
+    <div class="card">
+      <h3>① QQ 官方机器人凭据</h3>
+      <div class="grid">
+        <div>
+          <label>AppID（Key）</label>
+          <input type="text" id="appId" placeholder="如 1020xxxxx" autocomplete="off" />
+        </div>
+        <div>
+          <label>AppSecret（Token）<span id="secretHint" class="alias"></span></label>
+          <input type="password" id="appSecret" placeholder="不填则沿用已保存的密钥" autocomplete="off" />
+        </div>
+        <div>
+          <label>机器人 QQ 号（可选，仅记录）</label>
+          <input type="text" id="botQq" placeholder="如 10001" autocomplete="off" />
+        </div>
+        <div>
+          <label>环境</label>
+          <select id="sandbox">
+            <option value="false">正式环境</option>
+            <option value="true">沙箱环境</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <button id="saveCred">保存凭据</button>
+        <span class="stats" id="credState"></span>
+      </div>
+    </div>
+
+    <!-- 指令 -->
+    <div class="card">
+      <h3>② 指令清单</h3>
+      <div class="row">
+        <span class="stats" id="cmdStats">加载中…</span>
+        <input type="text" id="filter" placeholder="过滤：指令名 / 插件" style="max-width: 220px" />
+        <button id="checkAll">全选</button>
+        <button id="uncheckAll">全不选</button>
+        <button id="rescan">重新扫描</button>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px">上传</th>
+              <th>指令名</th>
+              <th>面板显示名</th>
+              <th>描述</th>
+              <th>所属插件</th>
+            </tr>
+          </thead>
+          <tbody id="cmdBody"></tbody>
+        </table>
+      </div>
+      <div class="row">
+        <button id="saveCmds">保存勾选</button>
+        <button class="primary" id="upload">保存并上传</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      let bridge = window.AstrBotPluginPage;
+      let commands = [];
+
+      const el = (id) => document.getElementById(id);
+      const esc = (t) =>
+        String(t == null ? "" : t)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+      function toast(msg, ok = true) {
+        const box = el("toast");
+        box.textContent = msg;
+        box.className = "toast " + (ok ? "ok" : "err");
+        box.style.display = "block";
+        clearTimeout(box._timer);
+        box._timer = setTimeout(() => (box.style.display = "none"), 6000);
+      }
+
+      function waitForBridge(timeoutMs = 8000) {
+        if (window.AstrBotPluginPage) {
+          bridge = window.AstrBotPluginPage;
+          return Promise.resolve();
+        }
+        return new Promise((resolve, reject) => {
+          const deadline = Date.now() + timeoutMs;
+          const timer = setInterval(() => {
+            if (window.AstrBotPluginPage) {
+              bridge = window.AstrBotPluginPage;
+              clearInterval(timer);
+              resolve();
+            } else if (Date.now() > deadline) {
+              clearInterval(timer);
+              reject(new Error("插件桥接 SDK 未加载"));
+            }
+          }, 50);
+        });
+      }
+
+      function render() {
+        const kw = el("filter").value.trim().toLowerCase();
+        const rows = commands
+          .map((c, idx) => ({ c, idx }))
+          .filter(({ c }) => {
+            if (!kw) return true;
+            return (
+              String(c.name || "").toLowerCase().includes(kw) ||
+              String(c.panel_name || "").toLowerCase().includes(kw) ||
+              String(c.plugin || "").toLowerCase().includes(kw)
+            );
+          });
+
+        const body = el("cmdBody");
+        if (!rows.length) {
+          body.innerHTML = '<tr><td colspan="5"><div class="empty">没有匹配的指令</div></td></tr>';
+          updateStats();
+          return;
+        }
+        body.innerHTML = rows
+          .map(({ c, idx }) => {
+            const checked = c.block ? "" : "checked";
+            const aliases = (c.aliases || []).join(" / ");
+            return `<tr>
+              <td><input type="checkbox" data-idx="${idx}" class="pick" ${checked}></td>
+              <td class="name">${esc(c.name)}${c.manual ? ' <span class="badge off">手工</span>' : ""}
+                <div class="alias">${esc(aliases)}</div></td>
+              <td><input type="text" data-idx="${idx}" data-field="panel_name" value="${esc(c.panel_name || c.name)}"></td>
+              <td><input type="text" data-idx="${idx}" data-field="desc" value="${esc(c.desc || "")}"></td>
+              <td class="plugin">${esc(c.plugin || "-")}</td>
+            </tr>`;
+          })
+          .join("");
+        updateStats();
+      }
+
+      function updateStats() {
+        const total = commands.length;
+        const enabled = commands.filter((c) => !c.block).length;
+        el("cmdStats").textContent = `共 ${total} 条 · 上传 ${enabled} 条 · 屏蔽 ${total - enabled} 条`;
+      }
+
+      async function loadAll() {
+        try {
+          const data = await bridge.apiGet("/state");
+          commands = (data && data.commands) || commands;
+          el("appId").value = (data && data.app_id) || "";
+          el("botQq").value = (data && data.bot_qq) || "";
+          el("sandbox").value = data && data.sandbox ? "true" : "false";
+          el("appSecret").value = "";
+          el("secretHint").textContent = data && data.has_secret ? `（已保存 …${data.secret_tail}）` : "（未保存）";
+          el("credState").textContent = data && data.updated_at ? `上次保存：${data.updated_at}` : "";
+          const last = data && data.last_upload;
+          if (last && (last.errors || []).length) {
+            toast("上次上传有错误：\n" + last.errors.join("\n"), false);
+          }
+          render();
+        } catch (error) {
+          el("cmdStats").textContent = "加载失败";
+          toast("加载失败：" + error.message, false);
+        }
+      }
+
+      // 勾选 / 编辑
+      el("cmdBody").addEventListener("change", (ev) => {
+        const target = ev.target;
+        const idx = Number(target.dataset.idx);
+        if (Number.isNaN(idx) || !commands[idx]) return;
+        if (target.classList.contains("pick")) {
+          commands[idx].block = !target.checked;
+        } else if (target.dataset.field) {
+          commands[idx][target.dataset.field] = target.value;
+        }
+        updateStats();
+      });
+      el("filter").addEventListener("input", render);
+
+      el("checkAll").addEventListener("click", () => {
+        commands.forEach((c) => (c.block = false));
+        render();
+      });
+      el("uncheckAll").addEventListener("click", () => {
+        commands.forEach((c) => (c.block = true));
+        render();
+      });
+
+      el("saveCred").addEventListener("click", async () => {
+        el("saveCred").disabled = true;
+        try {
+          const res = await bridge.apiPost("/credentials", {
+            app_id: el("appId").value.trim(),
+            app_secret: el("appSecret").value.trim(),
+            bot_qq: el("botQq").value.trim(),
+            sandbox: el("sandbox").value === "true",
+          });
+          el("secretHint").textContent = res && res.has_secret ? "（已保存）" : "（未保存）";
+          el("appSecret").value = "";
+          toast("凭据已保存（未上传）");
+        } catch (error) {
+          toast("保存失败：" + error.message, false);
+        } finally {
+          el("saveCred").disabled = false;
+        }
+      });
+
+      el("rescan").addEventListener("click", async () => {
+        el("rescan").disabled = true;
+        try {
+          const data = await bridge.apiPost("/rescan", {});
+          commands = (data && data.commands) || commands;
+          render();
+          toast(`重新扫描完成，共 ${commands.length} 条指令`);
+        } catch (error) {
+          toast("扫描失败：" + error.message, false);
+        } finally {
+          el("rescan").disabled = false;
+        }
+      });
+
+      el("saveCmds").addEventListener("click", async () => {
+        el("saveCmds").disabled = true;
+        try {
+          await bridge.apiPost("/commands", { commands });
+          toast("指令勾选已保存");
+        } catch (error) {
+          toast("保存失败：" + error.message, false);
+        } finally {
+          el("saveCmds").disabled = false;
+        }
+      });
+
+      el("upload").addEventListener("click", async () => {
+        if (!el("appId").value.trim() && !confirm("尚未填写 AppID，仍继续？")) return;
+        const enabled = commands.filter((c) => !c.block).length;
+        if (!confirm(`将上传 ${enabled} 条指令到 QQ 平台，确认继续？`)) return;
+        el("upload").disabled = true;
+        try {
+          const res = await bridge.apiPost("/upload", {
+            app_id: el("appId").value.trim(),
+            app_secret: el("appSecret").value.trim(),
+            bot_qq: el("botQq").value.trim(),
+            sandbox: el("sandbox").value === "true",
+          });
+          const lines = ((res && res.results) || []).map(
+            (r) => `${r.scope}: +${(r.added || []).length} -${(r.removed || []).length} / ${r.panels} 面板`
+          );
+          toast("上传完成：\n" + (lines.join("\n") || "无变更"), true);
+          await loadAll();
+        } catch (error) {
+          toast("上传失败：" + error.message, false);
+        } finally {
+          el("upload").disabled = false;
+        }
+      });
+
+      (async () => {
+        try {
+          await waitForBridge();
+          await loadAll();
+        } catch (error) {
+          el("cmdStats").textContent = "";
+          el("cmdBody").innerHTML = `<tr><td colspan="5"><div class="empty">${esc(error.message)}</div></td></tr>`;
+        }
+      })();
+    </script>
+  </body>
+</html>

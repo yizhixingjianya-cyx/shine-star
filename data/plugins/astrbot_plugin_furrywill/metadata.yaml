@@ -1,0 +1,8 @@
+name: astrbot_plugin_furrywill
+desc: 将「每日鉴毛」(Furry Will / Furry Gallery) 封装成指令与 AI 可调用工具（随机抽卡、期数/名称/地区/工作室查询），并支持把卡片图嵌入 AI 回复或直接发送。
+author: cyx
+version: 1.0.0
+repo: ""
+display_name: 每日鉴毛
+short_desc: 每日鉴毛抽卡指令 + AI 工具，支持卡片图嵌入回复。
+astrbot_version: ">=4.5.1"

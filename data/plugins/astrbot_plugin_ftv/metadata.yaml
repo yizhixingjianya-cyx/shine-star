@@ -1,0 +1,8 @@
+name: astrbot_plugin_ftv
+desc: 将 FTV / FurryWill 毛装档案平台封装成指令与 AI 可调用工具（热门、随机、搜索、兽档案、崽崽、学校、聚会、动态流等），并支持把渲染的档案图/统计图嵌入 AI 回复或直接发送。
+author: cyx
+version: 2.0.0
+repo: ""
+display_name: FTV 兽频道
+short_desc: FTV 档案查询指令 + AI 工具，支持渲染图片并嵌入回复。
+astrbot_version: ">=4.5.1"

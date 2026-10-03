@@ -1,0 +1,41 @@
+{
+  "page": {
+    "title": "数据库配置",
+    "subtitle": "配置整个机器人使用的全局数据库。切换后需要重启 AstrBot 才能生效。"
+  },
+  "actions": {
+    "refresh": "刷新",
+    "save": "保存",
+    "test": "测试连接"
+  },
+  "sections": {
+    "backend": "当前后端",
+    "backendHint": "AstrBot 正在使用的数据库连接（密码已脱敏）。",
+    "settings": "全局数据库设置",
+    "settingsHint": "SQLite 使用本地数据文件，适合单机；MySQL / MariaDB 适合多实例或外部存储。"
+  },
+  "status": {
+    "currentDialect": "数据库类型",
+    "currentUrl": "连接地址",
+    "memoryTables": "记忆系统表"
+  },
+  "fields": {
+    "type": "数据库类型",
+    "host": "主机",
+    "port": "端口",
+    "user": "用户名",
+    "password": "密码",
+    "passwordKeepHint": "留空表示保持原密码不变",
+    "database": "数据库名",
+    "charset": "字符集"
+  },
+  "types": {
+    "sqlite": "SQLite（本地文件，默认）",
+    "mysql": "MySQL / MariaDB"
+  },
+  "messages": {
+    "saved": "已保存",
+    "testOk": "连接成功",
+    "restartRequired": "检测到配置为 MySQL 但当前仍运行在 SQLite 上，请重启 AstrBot 使配置生效。"
+  }
+}

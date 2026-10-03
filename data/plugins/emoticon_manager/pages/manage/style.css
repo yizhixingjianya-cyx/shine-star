@@ -1,0 +1,258 @@
+/* emoticon_manager 管理页面样式（原生 CSS，浅色 / 深色双主题） */
+:root {
+  --bg: #f5f6f8;
+  --card-bg: #ffffff;
+  --text: #1f2329;
+  --muted: #7a828e;
+  --border: #e3e6eb;
+  --primary: #2563eb;
+  --primary-text: #ffffff;
+  --danger: #dc2626;
+  --ok: #16a34a;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* AstrBot 同步的深色主题（Dashboard 会在 html 上注入 data-theme） */
+:root[data-theme="dark"] {
+  --bg: #14161a;
+  --card-bg: #1e2126;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --border: #2f333a;
+  --primary: #3b82f6;
+  --danger: #ef4444;
+  --ok: #22c55e;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* 独立打开页面时的系统主题兜底 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161a;
+    --card-bg: #1e2126;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --border: #2f333a;
+    --primary: #3b82f6;
+    --danger: #ef4444;
+    --ok: #22c55e;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.btn {
+  background: var(--primary);
+  color: var(--primary-text);
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn.small {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.btn.danger {
+  background: var(--danger);
+}
+
+.btn.dl {
+  background: var(--muted);
+  color: #fff;
+}
+
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  padding: 26px 16px;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 12px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.upload-zone.dragging {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--card-bg));
+}
+
+.upload-main {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.upload-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.upload-status {
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.upload-status.ok {
+  background: color-mix(in srgb, var(--ok) 12%, var(--card-bg));
+  color: var(--ok);
+}
+
+.upload-status.error {
+  background: color-mix(in srgb, var(--danger) 12%, var(--card-bg));
+  color: var(--danger);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.preview {
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #00000010;
+  overflow: hidden;
+}
+
+:root[data-theme="dark"] .preview {
+  background: #ffffff10;
+}
+
+.preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.placeholder {
+  text-align: center;
+  font-size: 22px;
+  color: var(--muted);
+  padding: 10px;
+}
+
+.placeholder small {
+  font-size: 11px;
+}
+
+.meta {
+  padding: 8px 10px 4px;
+}
+
+.name {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px 10px;
+  margin-top: auto;
+}
+
+.actions .btn {
+  flex: 1;
+}
+
+.empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--muted);
+}
+
+.empty p {
+  margin: 6px 0;
+}
+
+.hint {
+  font-size: 12px;
+}
+
+.foot {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+code {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+}

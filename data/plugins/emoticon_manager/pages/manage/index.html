@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>随机表情包管理</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>🧰 随机表情包管理</h1>
+      <div class="toolbar">
+        <span id="total" class="badge">共 0 个</span>
+        <button id="refreshBtn" class="btn" type="button">🔄 刷新</button>
+      </div>
+    </header>
+
+    <!-- 上传区域：点击选择 / 拖拽上传 -->
+    <section id="uploadZone" class="upload-zone" title="点击选择图片，或拖拽图片到此处">
+      <p class="upload-main">⬆️ 点击选择或拖拽图片到此处上传</p>
+      <p class="upload-hint">支持 jpg / jpeg / png / gif 与 zip 压缩包（自动提取），单文件最大 8MB</p>
+      <input id="fileInput" type="file" accept=".jpg,.jpeg,.png,.gif,.zip" multiple hidden />
+    </section>
+
+    <!-- 上传/操作状态条 -->
+    <div id="uploadStatus" class="upload-status" hidden></div>
+
+    <!-- 表情网格 -->
+    <section id="grid" class="grid"></section>
+
+    <!-- 空状态 -->
+    <div id="empty" class="empty" hidden>
+      <p>📭 暂无表情包</p>
+      <p class="hint">请通过上方上传区域添加图片，或在聊天中发送 #表情包 试试</p>
+    </div>
+
+    <footer class="foot">
+      表情文件保存在插件目录 <code>static/emoticons/</code> 下
+    </footer>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

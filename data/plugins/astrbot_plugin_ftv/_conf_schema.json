@@ -1,0 +1,44 @@
+{
+  "ftv_base_url": {
+    "description": "FTV API 网关地址（优选 open-global.vdsentnet.com；大陆网络不稳定可换 open-cn1.vdsentnet.com）",
+    "type": "string",
+    "default": "https://open-cn1.vdsentnet.com"
+  },
+  "ftv_app_id": {
+    "description": "应用 ID（与 NoneBot .env 的 ftv_app_id 一致）",
+    "type": "string",
+    "default": "",
+    "secret": true
+  },
+  "ftv_client_secret": {
+    "description": "应用密钥（与 NoneBot .env 的 ftv_client_secret 一致）",
+    "type": "string",
+    "default": "",
+    "secret": true
+  },
+  "image_host_url": {
+    "description": "本地图床对外地址，形如 http://1.2.3.4:11451（公网可访问、指向本机图床服务）。留空则关闭图片托管，AI 工具与指令将回落为直接发送图片组件。",
+    "type": "string",
+    "default": ""
+  },
+  "image_host_port": {
+    "description": "本地图床静态服务监听端口（默认 11451）",
+    "type": "int",
+    "default": 11451
+  },
+  "image_host_bind": {
+    "description": "本地图床静态服务监听地址（默认 0.0.0.0；端口直通必须全网卡）",
+    "type": "string",
+    "default": "0.0.0.0"
+  },
+  "image_ttl_hours": {
+    "description": "临时图保留小时数，默认 24；0 表示不回收重新生成即可的临时图。",
+    "type": "float",
+    "default": 24
+  },
+  "help_text": {
+    "description": "「兽频道帮助」生成的帮助图内容，留空使用内置默认文案。",
+    "type": "text",
+    "default": ""
+  }
+}

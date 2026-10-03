@@ -1,0 +1,21 @@
+name: astrbot_plugin_cmd_uploader
+display_name: 指令上传面板
+desc: 读取 AstrBot 全部已注册指令，在 WebUI 面板里填写 QQ 官方机器人 AppID/AppSecret，由用户手动勾选并上传为 QQ 指令面板（快捷菜单指令）；不主动上传，配置持久化保存。
+short_desc: 汇总全机器人指令并按需手动上传到 QQ 官方平台。
+author: cyx
+version: 1.0.0
+repo: ""
+astrbot_version: ">=4.5.1"
+tags:
+  - 指令管理
+  - 上传
+  - WebUI 面板
+help: |
+  在 WebUI → 插件 → 「指令上传面板」中：
+  - 查看 AstrBot 里所有插件注册的指令；
+  - 填写 QQ 官方机器人的 AppID（Key）与 AppSecret（Token）；
+  - 勾选要上传的指令、可编辑面板名与描述；
+  - 点击「保存并上传」才会推送到 QQ 平台（不会自动上传）。
+pages:
+  - name: cmd-uploader
+    title: 指令上传面板

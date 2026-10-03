@@ -1,0 +1,22 @@
+name: astrbot_plugin_memory_ctx
+display_name: 记忆压缩与上下文管理
+desc: 定时压缩 AI 会话记忆、丢弃原文并归档，长期记忆分层保留；严格控制单会话上下文不超过设定 Token 上限，并提供后台记忆面板与记忆检索工具。
+short_desc: 定时压缩记忆、限制上下文长度、可视化每日记忆。
+author: TRAE
+version: 1.0.0
+repo: ""
+astrbot_version: ">=4.5.7"
+tags:
+  - 记忆管理
+  - 上下文
+  - AI 增强
+help: |
+  在群聊或私聊中发送：
+  - 记忆状态
+  - 记忆压缩
+  - 记忆清理
+
+  插件会在后台定时压缩会话记忆，并可在 Web 面板查看每日记忆。
+pages:
+  - name: memory-panel
+    title: 记忆面板

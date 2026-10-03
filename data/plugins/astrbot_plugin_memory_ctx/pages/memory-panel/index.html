@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>记忆面板</title>
+    <style>
+      :root {
+        --bg: #f7f8fa;
+        --card: #ffffff;
+        --text: #1f2329;
+        --muted: #8a8f99;
+        --border: #e5e6eb;
+        --accent: #3b82f6;
+      }
+      [data-theme="dark"] {
+        --bg: #1a1a1c;
+        --card: #26272b;
+        --text: #e8e8ea;
+        --muted: #9a9aa0;
+        --border: #3a3b40;
+        --accent: #60a5fa;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 20px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .stats { color: var(--muted); font-size: 13px; margin-right: auto; }
+      button, select, input {
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 13px;
+        outline: none;
+      }
+      button { cursor: pointer; }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      input { min-width: 200px; }
+      .list { display: flex; flex-direction: column; gap: 12px; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 16px;
+      }
+      .card-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .badge {
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--accent) 14%, transparent);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .badge.long { background: color-mix(in srgb, #f59e0b 16%, transparent); color: #f59e0b; }
+      .umo { font-family: ui-monospace, monospace; }
+      .summary { white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
+      .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+      .pager { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+      .tabs { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+      .tab {
+        border: none; background: transparent; border-radius: 0;
+        padding: 9px 14px; color: var(--muted); font-weight: 600;
+        border-bottom: 2px solid transparent;
+      }
+      .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+      .pane { display: none; }
+      .pane.active { display: block; }
+      .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+      .field label { font-size: 13px; color: var(--muted); }
+      .field select, .field input { min-width: 260px; }
+      .row { display: flex; flex-wrap: wrap; gap: 16px; }
+      .row .field { flex: 1 1 220px; }
+      .kv { width: 100%; border-collapse: collapse; font-size: 13px; }
+      .kv th, .kv td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+      .kv th { color: var(--muted); font-weight: 500; width: 200px; }
+      .msg { font-size: 13px; margin-top: 8px; }
+      .msg.ok { color: #16a34a; }
+      .msg.err { color: #dc2626; }
+      .hint { color: var(--muted); font-size: 12px; margin: 4px 0 16px; }
+      .danger-zone {
+        margin-top: 28px;
+        border: 1px solid color-mix(in srgb, #dc2626 35%, transparent);
+        border-radius: 12px;
+        padding: 14px 16px;
+        background: color-mix(in srgb, #dc2626 6%, transparent);
+      }
+      .danger-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 10px; }
+      .danger-title { font-weight: 700; color: #dc2626; font-size: 14px; }
+      button.danger {
+        background: #dc2626; border-color: #dc2626; color: #fff;
+      }
+      button.danger:hover { background: #b91c1c; border-color: #b91c1c; }
+      button.mini { padding: 4px 10px; font-size: 12px; }
+      .session-row {
+        display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      }
+      .session-row .umo { flex: 1 1 320px; word-break: break-all; }
+    </style>
+  </head>
+  <body>
+    <div class="tabs">
+      <button class="tab active" data-pane="memories">记忆</button>
+      <button class="tab" data-pane="sessions">会话</button>
+      <button class="tab" data-pane="settings">设置</button>
+      <button class="tab" data-pane="database">数据库</button>
+    </div>
+
+    <div class="pane active" id="pane-memories">
+      <div class="toolbar">
+        <span class="stats" id="stats">加载中…</span>
+        <select id="tier">
+          <option value="all">全部记忆</option>
+          <option value="1">每日记忆</option>
+          <option value="2">长期记忆</option>
+        </select>
+        <input id="umo" placeholder="按会话过滤（可选，如 aiocqhttp:GroupMessage:123）" />
+        <button id="refresh">刷新</button>
+        <button class="primary" id="compress">立即压缩</button>
+      </div>
+      <div class="list" id="list"></div>
+      <div class="pager">
+        <button id="prev">上一页</button>
+        <span id="pageinfo" style="align-self: center; color: var(--muted)"></span>
+        <button id="next">下一页</button>
+      </div>
+
+      <div class="danger-zone">
+        <div class="danger-head">
+          <span class="danger-title">危险操作</span>
+          <span class="hint" style="margin: 0">删除不可恢复</span>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>一键清空范围</label>
+            <select id="delete-all-scope">
+              <option value="all">全部（长期+每日+归档+游标）</option>
+              <option value="long_term">仅长期记忆</option>
+              <option value="daily">仅每日记忆</option>
+              <option value="archive">仅归档原文</option>
+            </select>
+          </div>
+          <div class="field" style="justify-content: flex-end">
+            <button class="danger" id="delete-all">一键清空全部会话</button>
+          </div>
+        </div>
+        <div class="msg" id="delete-msg"></div>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-sessions">
+      <div class="hint">每个会话拥有独立的长期记忆与每日记忆。可单独删除，或连同归档一起清除。</div>
+      <div class="toolbar">
+        <button id="sessions-refresh">刷新会话</button>
+      </div>
+      <div class="list" id="sessions-list"></div>
+      <div class="msg" id="sessions-msg"></div>
+    </div>
+
+    <div class="pane" id="pane-settings">
+      <div class="hint">向量检索模型可直接从已添加的模型中下拉选择，保存后立即生效。</div>
+      <div class="row">
+        <div class="field">
+          <label>压缩使用的对话模型</label>
+          <select id="cfg-compress"></select>
+        </div>
+        <div class="field">
+          <label>向量检索 Embedding 模型</label>
+          <select id="cfg-embedding"></select>
+        </div>
+        <div class="field">
+          <label>向量检索 Rerank 模型（可选）</label>
+          <select id="cfg-rerank"></select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>保留最近轮数</label>
+          <input id="cfg-keep" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label>上下文 Token 上限</label>
+          <input id="cfg-maxtokens" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label>紧急压缩触发比例</label>
+          <input id="cfg-ratio" type="number" step="0.05" min="0.1" max="1" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>每日记忆保留天数</label>
+          <input id="cfg-ttl1" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label>长期记忆保留天数</label>
+          <input id="cfg-ttl2" type="number" min="0" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>长期记忆注入上下文</label>
+          <select id="cfg-inject">
+            <option value="true">开启</option>
+            <option value="false">关闭</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>长期记忆注入 Token 上限</label>
+          <input id="cfg-inject-tokens" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label>每日记忆检索工具</label>
+          <select id="cfg-daily-tool">
+            <option value="true">开启</option>
+            <option value="false">关闭</option>
+          </select>
+        </div>
+      </div>
+      <button class="primary" id="save-config">保存设置</button>
+      <div class="msg" id="settings-msg"></div>
+    </div>
+
+    <div class="pane" id="pane-database">
+      <div class="hint">
+        AstrBot 主库连接（只读展示，敏感信息已脱敏）。插件三张表 <code>mem_*</code> 建在该库中；
+        切换数据库需在「插件配置 → 数据库」里修改并重启。
+      </div>
+      <table class="kv">
+        <tr><th>数据库类型</th><td id="db-dialect">-</td></tr>
+        <tr><th>连接地址</th><td id="db-url">-</td></tr>
+        <tr><th>表前缀</th><td id="db-prefix">-</td></tr>
+        <tr><th>mem_segment</th><td id="db-c1">-</td></tr>
+        <tr><th>mem_raw_archive</th><td id="db-c2">-</td></tr>
+        <tr><th>mem_cursor</th><td id="db-c3">-</td></tr>
+      </table>
+      <div class="hint" style="margin-top:18px">MySQL 连接测试（不保存，仅验证连通性）</div>
+      <div class="row">
+        <div class="field"><label>主机</label><input id="mysql-host" placeholder="127.0.0.1" /></div>
+        <div class="field"><label>端口</label><input id="mysql-port" type="number" placeholder="3306" /></div>
+        <div class="field"><label>用户名</label><input id="mysql-user" placeholder="root" /></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>密码</label><input id="mysql-password" type="password" /></div>
+        <div class="field"><label>数据库名</label><input id="mysql-database" placeholder="astrbot" /></div>
+      </div>
+      <button id="test-db">测试连接</button>
+      <div class="msg" id="db-msg"></div>
+    </div>
+
+    <script>
+      let bridge = window.AstrBotPluginPage;
+      const state = {
+        page: 1,
+        pageSize: 20,
+        total: 0,
+        providers: { chat: [], embedding: [], rerank: [] },
+        config: {},
+      };
+
+      const el = (id) => document.getElementById(id);
+
+      function waitForBridge(timeoutMs = 8000) {
+        if (window.AstrBotPluginPage) {
+          bridge = window.AstrBotPluginPage;
+          return Promise.resolve(bridge);
+        }
+        return new Promise((resolve, reject) => {
+          const deadline = Date.now() + timeoutMs;
+          const timer = setInterval(() => {
+            if (window.AstrBotPluginPage) {
+              clearInterval(timer);
+              bridge = window.AstrBotPluginPage;
+              resolve(bridge);
+            } else if (Date.now() > deadline) {
+              clearInterval(timer);
+              reject(new Error("插件桥接 SDK 未加载"));
+            }
+          }, 50);
+        });
+      }
+
+      function escapeHtml(text) {
+        return String(text == null ? "" : text)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function fmtTime(ts) {
+        if (!ts) return "-";
+        const date = new Date(ts * 1000);
+        return date.toLocaleString();
+      }
+
+      function render(items) {
+        const list = el("list");
+        if (!items.length) {
+          list.innerHTML = '<div class="empty">暂无记忆记录</div>';
+          return;
+        }
+        list.innerHTML = items
+          .map((item) => {
+            const isLong = item.tier === 2;
+            return `
+              <div class="card">
+                <div class="card-head">
+                  <span class="badge ${isLong ? "long" : ""}">${isLong ? "长期记忆" : "每日记忆"}</span>
+                  <span>${escapeHtml(item.period_key || "-")}</span>
+                  <span class="umo">${escapeHtml(item.umo)}</span>
+                  <span>${item.msg_count || 0} 条原文</span>
+                  <span>${item.summary_tokens || 0} tokens</span>
+                  <span>更新于 ${fmtTime(item.updated_at)}</span>
+                  <span>到期 ${fmtTime(item.expires_at)}</span>
+                </div>
+                <div class="summary">${escapeHtml(item.summary)}</div>
+              </div>`;
+          })
+          .join("");
+      }
+
+      async function load() {
+        try {
+          const data = await bridge.apiGet("/memories", {
+            tier: el("tier").value,
+            umo: el("umo").value.trim() || undefined,
+            page: state.page,
+            page_size: state.pageSize,
+          });
+          const items = (data && data.items) || [];
+          state.total = (data && data.total) || 0;
+          render(items);
+          const pages = Math.max(1, Math.ceil(state.total / state.pageSize));
+          el("pageinfo").textContent = `${state.page} / ${pages}`;
+        } catch (error) {
+          el("list").innerHTML = `<div class="empty">加载失败：${escapeHtml(error.message)}</div>`;
+        }
+      }
+
+      async function loadStats() {
+        try {
+          const data = await bridge.apiGet("/memory/stats", {
+            umo: el("umo").value.trim() || undefined,
+          });
+          const stats = (data && data.stats) || {};
+          el("stats").textContent = `每日记忆 ${stats.tier1 || 0} 条 · 长期记忆 ${stats.tier2 || 0} 条`;
+        } catch (error) {
+          el("stats").textContent = "统计加载失败";
+        }
+      }
+
+      async function refresh() {
+        await loadStats();
+        await load();
+      }
+
+      el("tier").addEventListener("change", () => {
+        state.page = 1;
+        load();
+      });
+      el("refresh").addEventListener("click", () => {
+        state.page = 1;
+        refresh();
+      });
+      el("prev").addEventListener("click", () => {
+        if (state.page > 1) {
+          state.page -= 1;
+          load();
+        }
+      });
+      el("next").addEventListener("click", () => {
+        const pages = Math.max(1, Math.ceil(state.total / state.pageSize));
+        if (state.page < pages) {
+          state.page += 1;
+          load();
+        }
+      });
+      el("compress").addEventListener("click", async () => {
+        const umo = el("umo").value.trim();
+        el("compress").disabled = true;
+        try {
+          await bridge.apiPost("/memory/compress", umo ? { umo } : {});
+          await refresh();
+        } catch (error) {
+          alert("压缩失败：" + error.message);
+        } finally {
+          el("compress").disabled = false;
+        }
+      });
+
+      function setMsg(id, text, ok) {
+        const node = el(id);
+        node.textContent = text || "";
+        node.className = "msg " + (ok === undefined ? "" : ok ? "ok" : "err");
+      }
+
+      function fillSelect(id, options, current) {
+        const select = el(id);
+        const entries = [{ id: "", label: "（跟随默认）" }].concat(options || []);
+        select.innerHTML = entries
+          .map((item) => {
+            const selected = String(item.id) === String(current || "") ? " selected" : "";
+            return `<option value="${escapeHtml(item.id)}"${selected}>${escapeHtml(item.label)}</option>`;
+          })
+          .join("");
+      }
+
+      async function loadProviders() {
+        const data = await bridge.apiGet("/providers", {});
+        state.providers = data || { chat: [], embedding: [], rerank: [] };
+      }
+
+      async function loadConfig() {
+        const data = await bridge.apiGet("/config", {});
+        state.config = (data && data.config) || {};
+        const cfg = state.config;
+        fillSelect("cfg-compress", state.providers.chat, cfg.compress_provider_id);
+        fillSelect("cfg-embedding", state.providers.embedding, cfg.embedding_provider_id);
+        fillSelect("cfg-rerank", state.providers.rerank, cfg.rerank_provider_id);
+        el("cfg-keep").value = cfg.keep_recent_turns ?? "";
+        el("cfg-maxtokens").value = cfg.max_context_tokens ?? "";
+        el("cfg-ratio").value = cfg.emergency_threshold_ratio ?? "";
+        el("cfg-ttl1").value = cfg.summary_ttl_days ?? "";
+        el("cfg-ttl2").value = cfg.long_term_ttl_days ?? "";
+        el("cfg-inject").value = String(cfg.long_term_inject_enable !== false);
+        el("cfg-inject-tokens").value = cfg.long_term_inject_tokens ?? 1500;
+        el("cfg-daily-tool").value = String(cfg.daily_memory_tool_enable !== false);
+        el("mysql-host").value = cfg.mysql_host || "";
+        el("mysql-port").value = cfg.mysql_port || 3306;
+        el("mysql-user").value = cfg.mysql_user || "";
+        el("mysql-database").value = cfg.mysql_database || "";
+      }
+
+      async function loadDatabase() {
+        const data = await bridge.apiGet("/database", {});
+        const info = data || {};
+        el("db-dialect").textContent = info.dialect || "-";
+        el("db-url").textContent = info.database_url || "-";
+        el("db-prefix").textContent = info.table_prefix || "-";
+        const counts = info.counts || {};
+        el("db-c1").textContent = `${counts.tier1 ?? 0} 条（每日记忆）`;
+        el("db-c2").textContent = "见上方归档计数";
+        el("db-c3").textContent = `${counts.total ?? 0} 条（合计）`;
+      }
+
+      function renderSessions(items) {
+        const list = el("sessions-list");
+        if (!items.length) {
+          list.innerHTML = '<div class="empty">暂无会话记忆</div>';
+          return;
+        }
+        list.innerHTML = items
+          .map(
+            (item) => `
+              <div class="card">
+                <div class="session-row">
+                  <span class="umo">${escapeHtml(item.umo)}</span>
+                  <span class="badge">每日 ${item.daily || 0}</span>
+                  <span class="badge long">长期 ${item.long_term || 0}</span>
+                  <span style="color: var(--muted); font-size: 12px">更新于 ${fmtTime(item.latest)}</span>
+                  <button class="mini" data-action="del-daily" data-umo="${escapeHtml(item.umo)}">删每日</button>
+                  <button class="mini" data-action="del-long" data-umo="${escapeHtml(item.umo)}">删长期</button>
+                  <button class="mini danger" data-action="del-all" data-umo="${escapeHtml(item.umo)}">全部删除</button>
+                </div>
+              </div>`,
+          )
+          .join("");
+      }
+
+      async function loadSessions() {
+        try {
+          const data = await bridge.apiGet("/sessions", {});
+          renderSessions((data && data.items) || []);
+        } catch (error) {
+          el("sessions-list").innerHTML = `<div class="empty">加载失败：${escapeHtml(error.message)}</div>`;
+        }
+      }
+
+      async function deleteMemory(umo, scope) {
+        if (!window.confirm(`确认删除该会话的记忆？\n${umo}\n范围：${scope}`)) {
+          return;
+        }
+        setMsg("sessions-msg", "删除中…");
+        try {
+          const data = await bridge.apiPost("/memory/delete", { umo, scope });
+          setMsg("sessions-msg", `已删除：${JSON.stringify((data && data.deleted) || {})}`, true);
+          await loadSessions();
+        } catch (error) {
+          setMsg("sessions-msg", "删除失败：" + error.message, false);
+        }
+      }
+
+      el("sessions-list").addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) return;
+        const umo = button.getAttribute("data-umo");
+        const action = button.getAttribute("data-action");
+        const scope = action === "del-daily" ? "daily" : action === "del-long" ? "long_term" : "all";
+        deleteMemory(umo, scope);
+      });
+
+      el("sessions-refresh").addEventListener("click", () => loadSessions());
+
+      el("delete-all").addEventListener("click", async () => {
+        const scope = el("delete-all-scope").value;
+        if (!window.confirm(`确认清空所有会话的记忆？\n范围：${scope}\n此操作不可恢复。`)) {
+          return;
+        }
+        setMsg("delete-msg", "删除中…");
+        try {
+          const data = await bridge.apiPost("/memory/delete-all", { scope });
+          setMsg("delete-msg", `已删除：${JSON.stringify((data && data.deleted) || {})}`, true);
+          await refresh();
+        } catch (error) {
+          setMsg("delete-msg", "删除失败：" + error.message, false);
+        }
+      });
+
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          document.querySelectorAll(".tab").forEach((node) => node.classList.remove("active"));
+          document.querySelectorAll(".pane").forEach((node) => node.classList.remove("active"));
+          tab.classList.add("active");
+          el(`pane-${tab.dataset.pane}`).classList.add("active");
+          if (tab.dataset.pane === "sessions") {
+            loadSessions().catch((error) => setMsg("sessions-msg", error.message, false));
+          } else if (tab.dataset.pane === "settings") {
+            loadProviders()
+              .then(loadConfig)
+              .catch((error) => setMsg("settings-msg", error.message, false));
+          } else if (tab.dataset.pane === "database") {
+            loadDatabase().catch((error) => setMsg("db-msg", error.message, false));
+          }
+        });
+      });
+
+      el("save-config").addEventListener("click", async () => {
+        setMsg("settings-msg", "保存中…");
+        try {
+          await bridge.apiPost("/config", {
+            compress_provider_id: el("cfg-compress").value,
+            embedding_provider_id: el("cfg-embedding").value,
+            rerank_provider_id: el("cfg-rerank").value,
+            keep_recent_turns: Number(el("cfg-keep").value || 0),
+            max_context_tokens: Number(el("cfg-maxtokens").value || 0),
+            emergency_threshold_ratio: Number(el("cfg-ratio").value || 0.9),
+            summary_ttl_days: Number(el("cfg-ttl1").value || 0),
+            long_term_ttl_days: Number(el("cfg-ttl2").value || 0),
+            long_term_inject_enable: el("cfg-inject").value === "true",
+            long_term_inject_tokens: Number(el("cfg-inject-tokens").value || 0),
+            daily_memory_tool_enable: el("cfg-daily-tool").value === "true",
+          });
+          setMsg("settings-msg", "已保存", true);
+        } catch (error) {
+          setMsg("settings-msg", "保存失败：" + error.message, false);
+        }
+      });
+
+      el("test-db").addEventListener("click", async () => {
+        setMsg("db-msg", "测试中…");
+        try {
+          const result = await bridge.apiPost("/database/test", {
+            mysql_host: el("mysql-host").value.trim(),
+            mysql_port: Number(el("mysql-port").value || 3306),
+            mysql_user: el("mysql-user").value.trim(),
+            mysql_password: el("mysql-password").value,
+            mysql_database: el("mysql-database").value.trim(),
+          });
+          if (result && result.ok) {
+            setMsg("db-msg", `连接成功：${result.message || ""}`, true);
+          } else {
+            setMsg("db-msg", `连接失败：${(result && result.error) || "未知错误"}`, false);
+          }
+        } catch (error) {
+          setMsg("db-msg", "测试失败：" + error.message, false);
+        }
+      });
+
+      (async () => {
+        el("stats").textContent = "等待插件桥接…";
+        try {
+          await waitForBridge();
+          await refresh();
+          try {
+            await loadProviders();
+            await loadConfig();
+          } catch (error) {
+            setMsg("settings-msg", error.message, false);
+          }
+        } catch (error) {
+          el("stats").textContent = "";
+          el("list").innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+        }
+      })();
+    </script>
+  </body>
+</html>
