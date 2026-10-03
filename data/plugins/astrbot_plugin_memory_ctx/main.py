@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from astrbot.api.event import AstrMessageEvent, filter
@@ -34,7 +35,22 @@ class MemoryCtxPlugin(Star):
 
     async def initialize(self) -> None:
         """Create tables, register web APIs and schedule cron jobs."""
-        await self.store.ensure_tables()
+        try:
+            missing = await self.store.ensure_tables()
+        except Exception as exc:
+            self.logger.error(
+                "failed to create memory tables; long-term memory injection "
+                f"will be skipped until this is fixed: {exc}",
+                exc_info=True,
+            )
+        else:
+            if missing:
+                self.logger.error(
+                    "memory tables are still missing after creation attempt: "
+                    f"{missing}; long-term memory injection will be skipped."
+                )
+            else:
+                self.logger.info("memory tables are ready.")
         self._register_web_apis()
         if not bool(self.config.get("enable", True)):
             self.logger.info("memory_ctx compression disabled by configuration.")
@@ -222,23 +238,40 @@ class MemoryCtxPlugin(Star):
     @filter.command("记忆状态")
     async def memory_status(self, event: AstrMessageEvent):
         """Show the compression status of the current session."""
-        stats = await self.store.stats(event.unified_msg_origin)
-        yield event.plain_result(
+        umo = event.unified_msg_origin
+        stats = await self.store.stats(umo)
+        lines = [
+            f"当前会话 umo：{umo}",
             f"当前会话记忆：每日记忆 {stats.get('tier1', 0)} 条，"
-            f"长期记忆 {stats.get('tier2', 0)} 条。"
-        )
+            f"长期记忆 {stats.get('tier2', 0)} 条。",
+        ]
+        other = [
+            row
+            for row in await self.store.list_umo_summaries()
+            if row.get("umo") != umo and (row.get("daily") or row.get("long_term"))
+        ]
+        if other:
+            lines.append("其它已有记忆的会话（umo / 每日 / 长期）：")
+            lines.extend(
+                f"- {row['umo']} / {row.get('daily', 0)} / {row.get('long_term', 0)}"
+                for row in other[:5]
+            )
+        else:
+            lines.append("其它会话也没有记忆。")
+        yield event.plain_result("\n".join(lines))
 
     @filter.command("记忆压缩")
     async def memory_compress(self, event: AstrMessageEvent):
         """Trigger compression for the current session immediately."""
+        umo = event.unified_msg_origin
         try:
             result = await self.engine.compress_session(
-                event.unified_msg_origin, reason="manual", force=True
+                umo, reason="manual", force=True
             )
         except Exception as exc:
             yield event.plain_result(f"压缩失败：{exc}")
             return
-        yield event.plain_result(f"压缩结果：{result}")
+        yield event.plain_result(f"压缩结果（{umo}）：{result}")
 
     @filter.command("记忆清理")
     async def memory_purge(self, event: AstrMessageEvent):
@@ -317,8 +350,75 @@ class MemoryCtxPlugin(Star):
         return {"restored": restored}
 
     async def _api_sessions(self) -> dict:
-        rows = await self.store.list_umo_summaries()
-        return {"items": rows}
+        """List every known conversation together with its memory counters.
+
+        The previous implementation only returned sessions that already had
+        memory rows, so a session that had never been compressed was invisible
+        in the panel.
+        """
+        stats = {row["umo"]: row for row in await self.store.list_umo_summaries()}
+        try:
+            cursors = await self.store.list_cursors()
+        except Exception as exc:
+            self.logger.warning(f"list cursors failed: {exc}")
+            cursors = {}
+        try:
+            conversations = await self.context.conversation_manager.get_conversations()
+        except Exception as exc:
+            self.logger.warning(f"list conversations failed: {exc}")
+            conversations = []
+        items: list[dict] = []
+        seen: set[str] = set()
+        for conv in conversations:
+            umo = str(getattr(conv, "user_id", "") or "")
+            if not umo or umo in seen:
+                continue
+            seen.add(umo)
+            try:
+                content = json.loads(getattr(conv, "content", "") or "[]")
+            except Exception:
+                content = []
+            stat = stats.get(umo, {})
+            cursor = cursors.get(umo, {})
+            items.append(
+                {
+                    "umo": umo,
+                    "platform_id": str(getattr(conv, "platform_id", "") or ""),
+                    "session_type": stat.get("session_type")
+                    or self.engine.session_type(umo),
+                    "messages": len(content) if isinstance(content, list) else 0,
+                    "daily": int(stat.get("daily", 0) or 0),
+                    "long_term": int(stat.get("long_term", 0) or 0),
+                    "latest": int(stat.get("latest", 0) or 0),
+                    "last_compress_at": int(cursor.get("last_compress_at", 0) or 0),
+                    "last_error": cursor.get("last_error") or "",
+                }
+            )
+        for umo, stat in stats.items():
+            if umo in seen:
+                continue
+            cursor = cursors.get(umo, {})
+            items.append(
+                {
+                    "umo": umo,
+                    "platform_id": "",
+                    "session_type": stat.get("session_type") or "",
+                    "messages": 0,
+                    "daily": int(stat.get("daily", 0) or 0),
+                    "long_term": int(stat.get("long_term", 0) or 0),
+                    "latest": int(stat.get("latest", 0) or 0),
+                    "last_compress_at": int(cursor.get("last_compress_at", 0) or 0),
+                    "last_error": cursor.get("last_error") or "",
+                }
+            )
+        items.sort(
+            key=lambda row: max(
+                int(row.get("latest", 0) or 0),
+                int(row.get("last_compress_at", 0) or 0),
+            ),
+            reverse=True,
+        )
+        return {"items": items}
 
     async def _api_delete_memory(self) -> dict:
         body = await request.json(default={}) or {}

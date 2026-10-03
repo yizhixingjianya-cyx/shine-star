@@ -1,0 +1,33 @@
+{
+  "enable": {
+    "type": "bool",
+    "default": false,
+    "description": "启用群聊准入：未授权群不会进入 AI 对话，但每条消息仍会收到提醒。",
+    "hint": "建议先在面板里把现有群聊加入白名单，再打开本开关，避免现有群被拦。"
+  },
+  "reminder_text": {
+    "type": "string",
+    "default": "⚠️ 本群尚未授权，我暂时不能参与对话。\n请发送注册码完成授权（格式：注册 <注册码>），或联系管理员在后台把本群加入白名单。",
+    "description": "未授权群的每条消息会收到的提醒文本。"
+  },
+  "approved_text": {
+    "type": "string",
+    "default": "✅ 注册码有效，本群已授权，我现在可以参与对话啦。",
+    "description": "注册码验证通过后的回复。"
+  },
+  "bad_code_text": {
+    "type": "string",
+    "default": "❌ 注册码无效或已用尽，请检查后重新发送，或联系管理员。",
+    "description": "注册码无效时的回复。"
+  },
+  "register_keywords": {
+    "type": "string",
+    "default": "注册,授权,登记",
+    "description": "触发注册的指令词（英文逗号分隔）。也支持直接在群里发送注册码。"
+  },
+  "code_length": {
+    "type": "int",
+    "default": 6,
+    "description": "在面板生成的注册码长度（4-32）。"
+  }
+}

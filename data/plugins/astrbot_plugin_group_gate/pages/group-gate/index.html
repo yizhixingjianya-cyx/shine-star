@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>群聊准入</title>
+    <style>
+      :root {
+        --bg: #f7f8fa;
+        --card: #ffffff;
+        --text: #1f2329;
+        --muted: #8a8f99;
+        --border: #e5e6eb;
+        --accent: #3b82f6;
+        --ok: #16a34a;
+        --danger: #dc2626;
+      }
+      [data-theme="dark"] {
+        --bg: #1a1a1c;
+        --card: #26272b;
+        --text: #e8e8ea;
+        --muted: #9a9aa0;
+        --border: #3a3b40;
+        --accent: #60a5fa;
+        --ok: #4ade80;
+        --danger: #f87171;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 20px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+      .tab {
+        padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border);
+        background: var(--card); color: var(--text); cursor: pointer; font-size: 14px;
+      }
+      .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+      .panel { display: none; }
+      .panel.active { display: block; }
+      .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+      .stats { color: var(--muted); font-size: 13px; margin-right: auto; }
+      button {
+        padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border);
+        background: var(--card); color: var(--text); cursor: pointer; font-size: 13px;
+      }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button.danger { color: var(--danger); border-color: var(--danger); }
+      button.mini { padding: 4px 10px; font-size: 12px; }
+      .card {
+        background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+        padding: 12px 14px; margin-bottom: 10px;
+      }
+      .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .umo { font-family: ui-monospace, Consolas, monospace; font-size: 12px; word-break: break-all; }
+      .badge {
+        font-size: 12px; padding: 2px 8px; border-radius: 999px;
+        background: rgba(120, 120, 120, 0.15); color: var(--muted);
+      }
+      .badge.ok { background: rgba(22, 163, 74, 0.15); color: var(--ok); }
+      .badge.no { background: rgba(220, 38, 38, 0.15); color: var(--danger); }
+      .empty { color: var(--muted); padding: 24px 0; text-align: center; }
+      .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+      .field label { font-size: 13px; color: var(--muted); }
+      input[type="text"], input[type="number"], select, textarea {
+        padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+        background: var(--bg); color: var(--text); font-size: 13px; font-family: inherit;
+      }
+      textarea { min-height: 70px; resize: vertical; }
+      .msg { font-size: 13px; margin-left: 8px; }
+      .msg.ok { color: var(--ok); }
+      .msg.err { color: var(--danger); }
+      .code {
+        font-family: ui-monospace, Consolas, monospace; font-size: 15px;
+        letter-spacing: 1px; font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="tabs">
+      <button class="tab active" data-tab="groups">群聊白名单</button>
+      <button class="tab" data-tab="codes">注册码</button>
+      <button class="tab" data-tab="settings">设置</button>
+    </div>
+
+    <div class="panel active" id="panel-groups">
+      <div class="toolbar">
+        <span class="stats" id="group-stats">加载中…</span>
+        <button id="groups-refresh">刷新</button>
+        <button class="primary" id="bulk-allow">选中 → 加入白名单</button>
+        <button class="danger" id="bulk-deny">选中 → 移出白名单</button>
+        <button id="seed">把当前所有已知群加入白名单</button>
+        <span class="msg" id="group-msg"></span>
+      </div>
+      <div id="group-list"></div>
+    </div>
+
+    <div class="panel" id="panel-codes">
+      <div class="card">
+        <div class="row">
+          <div class="field" style="flex: 1; min-width: 130px">
+            <label>数量</label>
+            <input type="number" id="code-count" value="1" min="1" max="50" />
+          </div>
+          <div class="field" style="flex: 1; min-width: 130px">
+            <label>长度</label>
+            <input type="number" id="code-length" value="6" min="4" max="32" />
+          </div>
+          <div class="field" style="flex: 1; min-width: 130px">
+            <label>可用次数（0 = 不限）</label>
+            <input type="number" id="code-uses" value="1" min="0" />
+          </div>
+          <div class="field" style="flex: 2; min-width: 180px">
+            <label>备注</label>
+            <input type="text" id="code-note" placeholder="可选，例如：给某某群" />
+          </div>
+          <button class="primary" id="gen-codes" style="align-self: flex-end">生成</button>
+        </div>
+        <span class="msg" id="code-msg"></span>
+      </div>
+      <div class="toolbar">
+        <span class="stats">注册码列表</span>
+        <button id="codes-refresh">刷新</button>
+      </div>
+      <div id="code-list"></div>
+    </div>
+
+    <div class="panel" id="panel-settings">
+      <div class="card">
+        <div class="field">
+          <label>启用群聊准入（未授权群不进入 AI 对话，仅回提醒）</label>
+          <select id="cfg-enable">
+            <option value="false">关闭</option>
+            <option value="true">开启</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>提醒文本（未授权群的每条消息都会收到）</label>
+          <textarea id="cfg-reminder"></textarea>
+        </div>
+        <div class="field">
+          <label>授权成功文本</label>
+          <textarea id="cfg-approved"></textarea>
+        </div>
+        <div class="field">
+          <label>注册码无效文本</label>
+          <textarea id="cfg-bad"></textarea>
+        </div>
+        <div class="field">
+          <label>触发注册的指令词（英文逗号分隔）</label>
+          <input type="text" id="cfg-keywords" />
+        </div>
+        <button class="primary" id="save-config">保存设置</button>
+        <span class="msg" id="settings-msg"></span>
+      </div>
+    </div>
+
+    <script>
+      let bridge = window.AstrBotPluginPage;
+      const el = (id) => document.getElementById(id);
+
+      function waitForBridge(timeoutMs = 8000) {
+        if (window.AstrBotPluginPage) {
+          bridge = window.AstrBotPluginPage;
+          return Promise.resolve(bridge);
+        }
+        return new Promise((resolve, reject) => {
+          const deadline = Date.now() + timeoutMs;
+          const timer = setInterval(() => {
+            if (window.AstrBotPluginPage) {
+              clearInterval(timer);
+              bridge = window.AstrBotPluginPage;
+              resolve(bridge);
+            } else if (Date.now() > deadline) {
+              clearInterval(timer);
+              reject(new Error("插件桥接 SDK 未加载"));
+            }
+          }, 50);
+        });
+      }
+
+      function escapeHtml(text) {
+        return String(text == null ? "" : text)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function fmtTime(ts) {
+        if (!ts) return "-";
+        return new Date(ts * 1000).toLocaleString();
+      }
+
+      function setMsg(id, text, ok) {
+        const node = el(id);
+        if (!node) return;
+        node.textContent = text || "";
+        node.className = "msg " + (ok === true ? "ok" : ok === false ? "err" : "");
+      }
+
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+          document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+          tab.classList.add("active");
+          el("panel-" + tab.dataset.tab).classList.add("active");
+        });
+      });
+
+      async function loadGroups() {
+        const list = el("group-list");
+        try {
+          const data = await bridge.apiGet("/groups", {});
+          const items = (data && data.items) || [];
+          el("group-stats").textContent = `共 ${items.length} 个群，已授权 ${
+            items.filter((i) => i.allowed).length
+          } 个`;
+          if (!items.length) {
+            list.innerHTML = '<div class="empty">暂无已知群聊</div>';
+            return;
+          }
+          list.innerHTML = items
+            .map(
+              (item) => `
+              <div class="card">
+                <div class="row">
+                  <input type="checkbox" class="gpick" value="${escapeHtml(item.umo)}" />
+                  <span class="badge ${item.allowed ? "ok" : "no"}">${
+                    item.allowed ? "已授权" : "未授权"
+                  }</span>
+                  <span class="umo">${escapeHtml(item.umo)}</span>
+                  <span class="badge">消息 ${item.messages || 0}</span>
+                  ${item.note ? `<span class="badge">${escapeHtml(item.note)}</span>` : ""}
+                  <button class="mini" data-act="allow" data-umo="${escapeHtml(item.umo)}">加白</button>
+                  <button class="mini danger" data-act="deny" data-umo="${escapeHtml(item.umo)}">移出</button>
+                </div>
+              </div>`,
+            )
+            .join("");
+        } catch (error) {
+          list.innerHTML = `<div class="empty">加载失败：${escapeHtml(error.message)}</div>`;
+        }
+      }
+
+      function picked() {
+        return Array.from(document.querySelectorAll(".gpick:checked")).map((n) => n.value);
+      }
+
+      async function bulk(allowed) {
+        const umos = picked();
+        if (!umos.length) {
+          setMsg("group-msg", "请先勾选群聊", false);
+          return;
+        }
+        setMsg("group-msg", "处理中…");
+        try {
+          const res = await bridge.apiPost("/whitelist-bulk", { umos, allowed });
+          setMsg("group-msg", `已更新 ${(res && res.updated) || 0} 个群`, true);
+          await loadGroups();
+        } catch (error) {
+          setMsg("group-msg", "失败：" + error.message, false);
+        }
+      }
+
+      async function loadCodes() {
+        const list = el("code-list");
+        try {
+          const data = await bridge.apiGet("/codes", {});
+          const items = (data && data.items) || [];
+          if (!items.length) {
+            list.innerHTML = '<div class="empty">暂无注册码</div>';
+            return;
+          }
+          list.innerHTML = items
+            .map(
+              (item) => `
+              <div class="card">
+                <div class="row">
+                  <span class="code">${escapeHtml(item.code)}</span>
+                  <span class="badge ${item.enabled ? "ok" : "no"}">${
+                    item.enabled ? "可用" : "已停用"
+                  }</span>
+                  <span class="badge">已用 ${item.uses || 0}${
+                    item.max_uses > 0 ? " / " + item.max_uses : " / 不限"
+                  }</span>
+                  ${item.note ? `<span class="badge">${escapeHtml(item.note)}</span>` : ""}
+                  <span style="color: var(--muted); font-size: 12px">创建于 ${fmtTime(
+                    item.created_at,
+                  )}</span>
+                  ${
+                    item.used_by
+                      ? `<span style="color: var(--muted); font-size: 12px">最近使用：${escapeHtml(
+                          item.used_by,
+                        )}</span>`
+                      : ""
+                  }
+                  <button class="mini" data-act="copy" data-code="${escapeHtml(item.code)}">复制</button>
+                  <button class="mini danger" data-act="del" data-code="${escapeHtml(item.code)}">删除</button>
+                </div>
+              </div>`,
+            )
+            .join("");
+        } catch (error) {
+          list.innerHTML = `<div class="empty">加载失败：${escapeHtml(error.message)}</div>`;
+        }
+      }
+
+      async function loadConfig() {
+        const cfg = await bridge.apiGet("/config", {});
+        el("cfg-enable").value = String(!!cfg.enable);
+        el("cfg-reminder").value = cfg.reminder_text || "";
+        el("cfg-approved").value = cfg.approved_text || "";
+        el("cfg-bad").value = cfg.bad_code_text || "";
+        el("cfg-keywords").value = cfg.register_keywords || "";
+        el("code-length").value = cfg.code_length || 6;
+      }
+
+      el("group-list").addEventListener("click", async (event) => {
+        const button = event.target.closest("button[data-act]");
+        if (!button) return;
+        const allowed = button.getAttribute("data-act") === "allow";
+        try {
+          await bridge.apiPost("/whitelist", {
+            umo: button.getAttribute("data-umo"),
+            allowed,
+          });
+          await loadGroups();
+        } catch (error) {
+          setMsg("group-msg", "失败：" + error.message, false);
+        }
+      });
+
+      el("code-list").addEventListener("click", async (event) => {
+        const button = event.target.closest("button[data-act]");
+        if (!button) return;
+        const code = button.getAttribute("data-code");
+        if (button.getAttribute("data-act") === "copy") {
+          try {
+            await navigator.clipboard.writeText(code);
+            setMsg("code-msg", "已复制 " + code, true);
+          } catch (error) {
+            setMsg("code-msg", "复制失败，请手动选择", false);
+          }
+          return;
+        }
+        if (!window.confirm("确认删除注册码 " + code + " ？")) return;
+        try {
+          await bridge.apiPost("/codes/delete", { code });
+          await loadCodes();
+        } catch (error) {
+          setMsg("code-msg", "删除失败：" + error.message, false);
+        }
+      });
+
+      el("gen-codes").addEventListener("click", async () => {
+        setMsg("code-msg", "生成中…");
+        try {
+          const res = await bridge.apiPost("/codes/create", {
+            count: Number(el("code-count").value || 1),
+            length: Number(el("code-length").value || 6),
+            max_uses: Number(el("code-uses").value || 1),
+            note: el("code-note").value.trim(),
+          });
+          setMsg("code-msg", "已生成：" + ((res && res.created) || []).join("、"), true);
+          await loadCodes();
+        } catch (error) {
+          setMsg("code-msg", "生成失败：" + error.message, false);
+        }
+      });
+
+      el("save-config").addEventListener("click", async () => {
+        setMsg("settings-msg", "保存中…");
+        try {
+          await bridge.apiPost("/config", {
+            enable: el("cfg-enable").value === "true",
+            reminder_text: el("cfg-reminder").value,
+            approved_text: el("cfg-approved").value,
+            bad_code_text: el("cfg-bad").value,
+            register_keywords: el("cfg-keywords").value,
+            code_length: Number(el("code-length").value || 6),
+          });
+          setMsg("settings-msg", "已保存", true);
+        } catch (error) {
+          setMsg("settings-msg", "保存失败：" + error.message, false);
+        }
+      });
+
+      el("seed").addEventListener("click", async () => {
+        if (!window.confirm("把当前所有已知群聊加入白名单？")) return;
+        setMsg("group-msg", "处理中…");
+        try {
+          const res = await bridge.apiPost("/seed-current", {});
+          setMsg("group-msg", `已导入 ${(res && res.updated) || 0} 个群`, true);
+          await loadGroups();
+        } catch (error) {
+          setMsg("group-msg", "失败：" + error.message, false);
+        }
+      });
+
+      el("bulk-allow").addEventListener("click", () => bulk(true));
+      el("bulk-deny").addEventListener("click", () => bulk(false));
+      el("groups-refresh").addEventListener("click", () => loadGroups());
+      el("codes-refresh").addEventListener("click", () => loadCodes());
+
+      (async () => {
+        el("group-stats").textContent = "等待插件桥接…";
+        try {
+          await waitForBridge();
+          await loadGroups();
+          await loadCodes();
+          await loadConfig();
+        } catch (error) {
+          el("group-stats").textContent = "";
+          el("group-list").innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+        }
+      })();
+    </script>
+  </body>
+</html>

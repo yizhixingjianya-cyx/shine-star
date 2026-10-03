@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from sqlalchemy import JSON, Text, text
+from sqlalchemy import JSON, Text, inspect, text
 from sqlmodel import Field, SQLModel, col, delete, func, select
 
 
@@ -31,6 +31,9 @@ class MemorySegment(SQLModel, table=True):
     """
 
     __tablename__ = "mem_segment"
+    # Reuse the existing table when the plugin module is re-imported on reload;
+    # otherwise SQLModel raises "Table 'mem_segment' is already defined".
+    __table_args__ = {"extend_existing": True}
 
     id: int | None = Field(
         default=None,
@@ -57,6 +60,7 @@ class RawArchive(SQLModel, table=True):
     """Soft-deleted raw messages kept as a cold backup for recovery."""
 
     __tablename__ = "mem_raw_archive"
+    __table_args__ = {"extend_existing": True}
 
     id: int | None = Field(
         default=None,
@@ -75,6 +79,7 @@ class CompressCursor(SQLModel, table=True):
     """Per-session compression state."""
 
     __tablename__ = "mem_cursor"
+    __table_args__ = {"extend_existing": True}
 
     umo: str = Field(primary_key=True)
     last_compress_at: int = Field(default=0)
@@ -98,10 +103,50 @@ class MemoryStore:
         """Return the underlying SQLAlchemy async engine."""
         return self.db.engine
 
-    async def ensure_tables(self) -> None:
-        """Create the plugin tables when they do not exist yet."""
-        async with self.engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
+    async def ensure_tables(self, retries: int = 3) -> list[str]:
+        """Create the plugin tables and report any that are still missing.
+
+        Creation is retried because a transient database error would otherwise
+        leave the plugin running without its tables, which silently disables
+        long-term memory injection.
+
+        Args:
+            retries: Number of creation attempts before giving up.
+
+        Returns:
+            The names of tables that could not be created or verified. An empty
+            list means every plugin table is present.
+
+        Raises:
+            Exception: The last error raised while creating or verifying the
+                tables, when every attempt failed.
+        """
+        table_names = (
+            MemorySegment.__tablename__,
+            RawArchive.__tablename__,
+            CompressCursor.__tablename__,
+        )
+        last_exc: Exception | None = None
+        missing: list[str] = list(table_names)
+        for _ in range(max(1, retries)):
+            try:
+                async with self.engine.begin() as conn:
+                    await conn.run_sync(SQLModel.metadata.create_all)
+                async with self.engine.connect() as conn:
+                    existing = await conn.run_sync(
+                        lambda sync_conn: set(inspect(sync_conn).get_table_names())
+                    )
+                missing = [name for name in table_names if name not in existing]
+                last_exc = None
+            except Exception as exc:
+                last_exc = exc
+                missing = list(table_names)
+                continue
+            if not missing:
+                break
+        if last_exc is not None:
+            raise last_exc
+        return missing
 
     async def list_session_umos(self) -> list[str]:
         """Return every distinct session identifier stored by AstrBot.
@@ -453,6 +498,23 @@ class MemoryStore:
                 else:
                     item["daily"] = int(count)
             return sorted(sessions.values(), key=lambda x: x["latest"], reverse=True)
+
+    async def list_cursors(self) -> dict[str, dict]:
+        """Return per-session compression cursors keyed by UMO.
+
+        Returns:
+            Mapping of UMO to its cursor fields (timestamps and last error).
+        """
+        async with self.db.get_db() as session:
+            rows = (await session.execute(select(CompressCursor))).scalars().all()
+        return {
+            row.umo: {
+                "last_compress_at": int(row.last_compress_at or 0),
+                "last_global_at": int(row.last_global_at or 0),
+                "last_error": row.last_error or "",
+            }
+            for row in rows
+        }
 
     async def purge_expired(self, now: int | None = None) -> int:
         """Delete memory segments whose retention window has elapsed.

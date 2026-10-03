@@ -70,6 +70,7 @@ class MemoryEngine:
         self.config = config or {}
         self.store = store
         self.logger = logger
+        self._ltm_read_error_logged = False
 
     def cfg(self, key: str, default: Any = None) -> Any:
         """Read a configuration value with a fallback default.
@@ -672,7 +673,14 @@ class MemoryEngine:
             rows, _ = await self.store.list_segments(
                 tier=2, umo=umo, page=1, page_size=10
             )
-        except Exception:
+        except Exception as exc:
+            if not self._ltm_read_error_logged:
+                self._ltm_read_error_logged = True
+                self.logger.error(
+                    "failed to read long-term memory (are the mem_* tables "
+                    f"created?): {exc}",
+                    exc_info=True,
+                )
             return ""
         for row in rows:
             if row.summary:
@@ -686,18 +694,26 @@ class MemoryEngine:
             event: The message event.
             req: The ``ProviderRequest`` about to be sent.
         """
-        if not bool(self.cfg("enable", True)) or not bool(
-            self.cfg("long_term_inject_enable", True)
-        ):
+        if not bool(self.cfg("enable", True)):
+            self.logger.debug("long-term injection skipped: plugin disabled.")
+            return
+        if not bool(self.cfg("long_term_inject_enable", True)):
+            self.logger.debug(
+                "long-term injection skipped: long_term_inject_enable is false."
+            )
             return
         umo = event.unified_msg_origin
         if not self.in_scope(umo):
+            self.logger.debug(f"long-term injection skipped: {umo} is out of scope.")
             return
         try:
             summary = await self._get_long_term_summary(umo)
         except Exception:
             return
         if not summary:
+            self.logger.debug(
+                f"long-term injection skipped: no tier-2 memory for {umo}."
+            )
             return
         budget = int(self.cfg("long_term_inject_tokens", 1500) or 1500)
         if budget > 0:
@@ -710,8 +726,14 @@ class MemoryEngine:
         )
         existing = getattr(req, "system_prompt", None) or ""
         if "<long_term_memory>" in existing:
+            self.logger.debug(
+                "long-term injection skipped: block already present in prompt."
+            )
             return
         req.system_prompt = f"{existing}\n\n{block}" if existing else block
+        self.logger.debug(
+            f"long-term memory injected for {umo} ({len(summary)} chars)."
+        )
 
     def _truncate_to_tokens(self, text: str, budget: int) -> str:
         """Truncate text so its estimated token count stays within a budget.
@@ -771,10 +793,22 @@ class MemoryEngine:
         umo = event.unified_msg_origin
         if not self.in_scope(umo):
             return
+        # --- context takeover: keep only the most recent turns -------------
+        # Older turns are dropped from the outgoing request; the scheduled
+        # compression job is responsible for archiving the raw text, so we do
+        # not archive here (that would re-insert the same turns on every call).
+        history = list(req.contexts or [])
+        if history:
+            head, body = self._split_leading_system(history)
+            _prior, body = self._strip_summary_pairs(body)
+            split = self._split_index(body, int(self.cfg("keep_recent_turns", 6)))
+            if split > 0:
+                req.contexts = list(head) + list(body[split:])
+                history = list(req.contexts)
+        # --- hard token ceiling still applies as a safety net --------------
         max_tokens = self.max_tokens
         if max_tokens <= 0:
             return
-        history = list(req.contexts or [])
         if not history:
             return
         threshold = max_tokens * float(self.cfg("emergency_threshold_ratio", 0.9))

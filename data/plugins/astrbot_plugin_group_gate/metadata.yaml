@@ -1,0 +1,19 @@
+name: astrbot_plugin_group_gate
+display_name: 群聊准入（注册码 / 白名单）
+desc: 新群必须提供注册码或由后台加入白名单才能与机器人对话；未授权群的每条消息都会收到提醒，且不会进入 AI 对话。
+short_desc: 群聊注册码 + 白名单准入。
+author: TRAE
+version: 1.0.0
+repo: ""
+astrbot_version: ">=4.5.7"
+tags:
+  - 群管理
+  - 准入
+  - 白名单
+help: |
+  在群聊中发送「注册 <注册码>」即可为本群授权。
+  注册码可在 Web 面板「群聊准入」中生成；
+  也可以在面板里勾选群聊直接加入白名单。
+pages:
+  - name: group-gate
+    title: 群聊准入

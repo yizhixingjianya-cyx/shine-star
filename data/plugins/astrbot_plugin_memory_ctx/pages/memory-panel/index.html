@@ -467,24 +467,32 @@
       function renderSessions(items) {
         const list = el("sessions-list");
         if (!items.length) {
-          list.innerHTML = '<div class="empty">暂无会话记忆</div>';
+          list.innerHTML = '<div class="empty">暂无会话</div>';
           return;
         }
         list.innerHTML = items
-          .map(
-            (item) => `
+          .map((item) => {
+            const when = item.last_compress_at
+              ? `上次压缩 ${fmtTime(item.last_compress_at)}`
+              : "尚未压缩";
+            const err = item.last_error
+              ? `<span class="badge" style="background:#5a2b2b">${escapeHtml(String(item.last_error)).slice(0, 40)}</span>`
+              : "";
+            return `
               <div class="card">
                 <div class="session-row">
                   <span class="umo">${escapeHtml(item.umo)}</span>
+                  <span class="badge">消息 ${item.messages || 0}</span>
                   <span class="badge">每日 ${item.daily || 0}</span>
                   <span class="badge long">长期 ${item.long_term || 0}</span>
-                  <span style="color: var(--muted); font-size: 12px">更新于 ${fmtTime(item.latest)}</span>
+                  <span style="color: var(--muted); font-size: 12px">${when}</span>
+                  ${err}
                   <button class="mini" data-action="del-daily" data-umo="${escapeHtml(item.umo)}">删每日</button>
                   <button class="mini" data-action="del-long" data-umo="${escapeHtml(item.umo)}">删长期</button>
                   <button class="mini danger" data-action="del-all" data-umo="${escapeHtml(item.umo)}">全部删除</button>
                 </div>
-              </div>`,
-          )
+              </div>`;
+          })
           .join("");
       }
 
