@@ -1,3 +1,5 @@
+// [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+// Upstream: https://github.com/AstrBotDevs/AstrBot
 // 静态导入所有翻译文件
 // 这种方式确保构建时所有翻译都会被正确打包
 

@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 """FastAPI HTTP API surface for the AstrBot dashboard."""
 
 from fastapi import APIRouter

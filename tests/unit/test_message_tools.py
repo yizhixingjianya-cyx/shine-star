@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 """Tests for send_message_to_user session handling."""
 
 from types import SimpleNamespace

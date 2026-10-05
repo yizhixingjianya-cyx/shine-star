@@ -1,3 +1,4 @@
+<!-- [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05. Upstream: https://github.com/AstrBotDevs/AstrBot -->
 <template>
   <div class="documents-tab">
     <!-- 操作栏 -->

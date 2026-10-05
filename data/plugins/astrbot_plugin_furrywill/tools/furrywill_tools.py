@@ -147,7 +147,8 @@ def build_tools(service: FurryWillService) -> list[FunctionTool]:
             "只想拿文字资料时用 furrywill_lookup；用户明确要求『直接发/别写文字』时用 furrywill_send_card。"
             "会把卡片图转存到本地图床并返回 markdown 图片语法"
             "（形如 `![每日鉴毛 #宽 #高](http://.../furrywill/keep/xxx.png)`）。"
-            "设置 send_to_chat=true 时会同时把图片作为一条消息直接发出。",
+            "设置 send_to_chat=true 时会同时把图片作为一条消息直接发出，"
+            "并把**实际发送的那张卡片**信息一并返回，请以返回信息为准配文。",
             {
                 "action": _prop(
                     "string",
@@ -171,7 +172,10 @@ def build_tools(service: FurryWillService) -> list[FunctionTool]:
             "furrywill_send_card",
             "抽一张『每日鉴毛』卡片并**直接发送**到当前聊天（无需你把 markdown 写进回复）。"
             "【使用范围】仅当用户明确要求『直接发一张/不用我贴文字』时使用；"
-            "普通看图请求请用 furrywill_render_card，同一次请求不要与它同时调用。",
+            "普通看图请求请用 furrywill_render_card，同一次请求不要与它同时调用。"
+            "注意：每次调用都会**重新随机抽一张**卡片；本工具会把**实际发送的那张卡片**的"
+            "名字/期号/地区/种族/工作室/出品方信息一并返回，请一律以返回的这张卡片信息为准"
+            "来写配文，不要另行编造或使用其它卡片的信息。",
             {
                 "action": _prop(
                     "string",
@@ -245,6 +249,25 @@ async def _markdown_for_card(
     return f"{img_md}\n\n{body}" if body else img_md
 
 
+def _sent_card_reply(card_text: str) -> str:
+    """拼出「已发送 + 所发卡片信息」的返回文案给模型。
+
+    直接发送类工具会把**实际抽到并发送**的那张卡片信息一并回传；模型据此撰写配文
+    即可，避免它另外描述一张卡而出现图文不一致。
+
+    Args:
+        card_text: ``build_card_text`` 生成的卡片正文。
+
+    Returns:
+        返回给 LLM 的工具结果文本。
+    """
+    return (
+        "已把下面这张卡片直接发送到聊天。请以下面这张卡片的信息为准来描述它，"
+        "不要另行编造或使用其它卡片的信息：\n\n"
+        f"{card_text}"
+    )
+
+
 async def _render_card_tool(service: FurryWillService, context, kw: dict) -> str:
     """抽卡并返回 markdown / 直接发送。"""
     body = await _fetch_card(
@@ -266,7 +289,7 @@ async def _render_card_tool(service: FurryWillService, context, kw: dict) -> str
         else:
             comps = [Plain(f"{build_card_text(card, producer)}\n"), Image.fromURL(url)]
             await event.send(event.chain_result(comps))
-        return "[每日鉴毛] 已把卡片直接发送到聊天。"
+        return _sent_card_reply(build_card_text(card, producer))
 
     md = await _markdown_for_card(card, producer, url, w, h)
     text = build_card_text(card, producer)
@@ -284,6 +307,7 @@ async def _send_card_tool(service: FurryWillService, context, kw: dict) -> str:
     if not fetched:
         return "[每日鉴毛] 没有获取到卡片数据，请换关键词再试"
     card, producer, url, w, h = fetched
+    card_text = build_card_text(card, producer)
 
     event = context.context.event
 
@@ -295,13 +319,13 @@ async def _send_card_tool(service: FurryWillService, context, kw: dict) -> str:
             chain.use_markdown(True)
             chain.use_keyboard(build_card_keyboard())
             await event.send(chain)
-            return "[每日鉴毛] 已把卡片以 markdown 直接发送到聊天。"
+            return _sent_card_reply(card_text)
 
     # 回落：普通消息「纯文本 + 图片 URL」
     if url:
-        comps = [Plain(f"{build_card_text(card, producer)}\n"), Image.fromURL(url)]
+        comps = [Plain(f"{card_text}\n"), Image.fromURL(url)]
         await event.send(event.chain_result(comps))
-        return "[每日鉴毛] 已把卡片直接发送到聊天。"
+        return _sent_card_reply(card_text)
 
-    await event.send(event.plain_result(build_card_text(card, producer)))
-    return "[每日鉴毛] 已发送卡片文字（无可用图片）。"
+    await event.send(event.plain_result(card_text))
+    return _sent_card_reply(card_text)

@@ -1,3 +1,5 @@
+// [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+// Upstream: https://github.com/AstrBotDevs/AstrBot
 /**
  * Dynamic I18n Loader
  * 动态国际化加载器，支持按需加载和缓存机制

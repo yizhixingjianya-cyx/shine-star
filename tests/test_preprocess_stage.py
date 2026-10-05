@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 import base64
 from io import BytesIO
 from types import SimpleNamespace

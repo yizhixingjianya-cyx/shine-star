@@ -1,243 +1,127 @@
 ![AstrBot-Logo-Simplified](https://github.com/user-attachments/assets/36fb04e4-cc75-4454-bd8b-049d11aa86f9)
 
-
 <div align="center">
 
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_zh.md">简体中文</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_zh-TW.md">繁體中文</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_ja.md">日本語</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_fr.md">Français</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_es.md">Español</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_ru.md">Русский</a> 
-
-<br>
-
-<div>
-<a href="https://trendshift.io/repositories/21369" target="_blank"><img src="https://trendshift.io/api/badge/repositories/21369" alt="AstrBotDevs%2FAstrBot | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-<a href="https://hellogithub.com/repository/AstrBotDevs/AstrBot" target="_blank"><img src="https://api.hellogithub.com/v1/widgets/recommend.svg?rid=d127d50cd5e54c5382328acc3bb25483&claim_uid=ZO9by7qCXgSd6Lp&t=2" alt="Featured｜HelloGitHub" style="width: 250px; height: 54px;" width="250" height="54" /></a>
-</div>
-
-<br>
-
-<div>
-<img src="https://img.shields.io/github/v/release/AstrBotDevs/AstrBot?color=76bad9" href="https://github.com/AstrBotDevs/AstrBot/releases/latest">
 <img src="https://img.shields.io/badge/python-3.12+-blue.svg" alt="python">
-<img src="https://deepwiki.com/badge.svg" href="https://deepwiki.com/AstrBotDevs/AstrBot">
-<a href="https://zread.ai/AstrBotDevs/AstrBot" target="_blank"><img src="https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff" alt="zread"/></a>
-<a href="https://hub.docker.com/r/soulter/astrbot"><img alt="Docker pull" src="https://img.shields.io/docker/pulls/soulter/astrbot.svg?color=76bad9"/></a>
-<img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.soulter.top%2Fastrbot%2Fplugin-num&query=%24.result&suffix=%20plugins&label=Marketplace&cacheSeconds=3600">
-<img src="https://gitcode.com/Soulter/AstrBot/star/badge.svg" href="https://gitcode.com/Soulter/AstrBot">
+<img src="https://img.shields.io/badge/license-AGPL--3.0--or--later-76bad9.svg" alt="license">
+
+<br><br>
+
+<a href="#快速开始">快速开始</a> ｜
+<a href="#内置插件">内置插件</a> ｜
+<a href="#部署">部署</a> ｜
+<a href="https://docs.astrbot.app/">上游文档</a> ｜
+<a href="https://github.com/fishpond-studio/shine-stars/issues">问题反馈</a>
+
 </div>
 
-<br>
+> **说明**：本仓库 `shine-stars` 是 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 的修改版分支，遵循 **GNU AGPL-3.0-or-later** 协议分发。修改声明见 [NOTICE](NOTICE)，对应源码见 <https://github.com/fishpond-studio/shine-stars>。
 
-<a href="https://astrbot.app/">Documentation</a> ｜
-<a href="https://blog.astrbot.app/">Blog</a> ｜
-<a href="https://astrbot.featurebase.app/roadmap">Roadmap</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/issues">Issue Tracker</a> ｜
-<a href="mailto:community@astrbot.app">Email Support</a>
-</div>
+## 简介
 
-AstrBot is an open-source all-in-one Agent chatbot platform that integrates with mainstream instant messaging apps. It provides reliable and scalable conversational AI infrastructure for individuals, developers, and teams. Whether you're building a personal AI companion, intelligent customer service, automation assistant, or enterprise knowledge base, AstrBot enables you to quickly build production-ready AI applications within your IM platform workflows.
+AstrBot 是一个开源的一站式 Agent 聊天机器人平台，可接入主流即时通讯应用，为个人、开发者和团队提供可靠、可扩展的对话式 AI 基础设施。
 
-![screenshot_1 5x_postspark_2026-02-27_22-37-45](https://github.com/user-attachments/assets/f17cdb90-52d7-4773-be2e-ff64b566af6b)
+`shine-stars` 在上游 AstrBot 的基础上，预置了一组面向 QQ 社群（毛装 / 兽档案等）的常用插件，并修复了若干本地化使用问题，开箱即可用于社群机器人场景。除内置插件外，其余使用方式与上游保持一致，完整的使用与开发文档请参考 [官方文档](https://docs.astrbot.app/)。
 
-## Key Features
+## 主要功能
 
-1. 💯 Free & Open Source.
-2. ✨ AI LLM Conversations, Multimodal, Agent, MCP, Skills, Knowledge Base, Persona Settings, Auto Context Compression.
-3. 🤖 Supports integration with Dify, Alibaba Cloud Bailian, Coze, and other agent platforms.
-4. 🌐 Multi-Platform: QQ, WeChat Work, Feishu, DingTalk, WeChat Official Accounts, Telegram, Slack, and [more](#supported-messaging-platforms).
-5. 📦 Plugin Extensions with 1000+ plugins available for one-click installation.
-6. 🛡️ [Agent Sandbox](https://docs.astrbot.app/use/astrbot-agent-sandbox.html) for isolated, safe execution of code, shell calls, and session-level resource reuse.
-7. 💻 WebUI Support.
-8. 🌈 Web ChatUI Support with built-in agent sandbox and web search.
-9. 🌐 Internationalization (i18n) Support.
+1. 💯 免费 & 开源。
+2. ✨ AI 大模型对话，多模态，Agent，MCP，Skills，知识库，人格设定，自动压缩对话。
+3. 🤖 支持接入 Dify、阿里云百炼、Coze 等智能体平台。
+4. 🌐 多平台，支持 QQ、企业微信、飞书、钉钉、微信公众号、Telegram、Slack 等。
+5. 📦 插件扩展，支持一键安装社区插件。
+6. 🛡️ [Agent Sandbox](https://docs.astrbot.app/use/astrbot-agent-sandbox.html) 隔离化环境，安全地执行代码、调用 Shell、会话级资源复用。
+7. 💻 WebUI 支持。
+8. 🌈 Web ChatUI 支持，内置代理沙盒、网页搜索等。
+9. 🌐 国际化（i18n）支持。
 
-## Quick Start
+## 内置插件
 
-### One-Click Cloud Deployment (RainYun)
+本分支预置以下插件（位于 `data/plugins/`），均可在 WebUI 面板中查看与配置：
 
-For users who want one-click 24-hour-online deployment and do not want to manage servers themselves, we recommend RainYun's one-click cloud deployment service ☁️:
+| 插件 | 说明 | 作者 |
+|------|------|------|
+| **FTV 兽频道**（`astrbot_plugin_ftv`） | 将 FTV / FurryWill 毛装档案平台封装为指令与 AI 工具（热门、随机、搜索、兽档案等），支持渲染档案图 / 统计图并嵌入回复。 | cyx |
+| **每日鉴毛**（`astrbot_plugin_furrywill`） | 「每日鉴毛」抽卡指令 + AI 工具（随机抽卡、期数 / 名称 / 地区 / 工作室查询），支持卡片图嵌入回复。 | cyx |
+| **群聊准入（注册码 / 白名单）**（`astrbot_plugin_group_gate`） | 新群需提供注册码或由后台加入白名单才能与机器人对话，未授权群的消息不会进入 AI 对话。 | TRAE |
+| **指令上传面板**（`astrbot_plugin_cmd_uploader`） | 汇总全部已注册指令，在 WebUI 中按需手动上传为 QQ 官方指令面板，配置持久化保存。 | cyx |
+| **记忆压缩与上下文管理**（`astrbot_plugin_memory_ctx`） | 对话结束后压缩并归档会话记忆、分层保留长期记忆，严格控制单会话上下文长度，并提供记忆面板与检索工具。 | TRAE |
+| **情绪表情包**（`emoticon_manager`） | 表情包插件，支持情感匹配与 WebUI 管理编辑。 | @bilibili彩凌 |
 
-[![Deploy on RainYun](https://rainyun-apps.cn-nb1.rains3.com/materials/deploy-on-rainyun-en.svg)](https://app.rainyun.com/apps/rca/store/5994?ref=NjU1ODg0)
+## 快速开始
 
-### One-Click Deployment
+### 本地运行（源码）
 
-> [!NOTE]
-> Requires [uv](https://docs.astral.sh/uv/) to be installed.
-> For macOS users: due to macOS security checks, the first run of the `astrbot` command may take longer (about 10-20s).
-
-For users who want to quickly experience AstrBot, are familiar with command-line usage, and can install a `uv` environment on their own, we recommend the `uv` one-click deployment method ⚡️:
+> 需要 Python 3.12+ 与 [uv](https://docs.astral.sh/uv/)。
 
 ```bash
-uv tool install astrbot --python 3.12
-astrbot init # Only execute this command for the first time to initialize the environment
-astrbot run
+git clone https://github.com/fishpond-studio/shine-stars.git
+cd shine-stars
+uv sync
+uv run main.py
 ```
 
-Update `astrbot`:
+默认会启动 API 服务，监听 `http://localhost:6185`。
+
+### 启动 WebUI（Dashboard）
 
 ```bash
-uv tool upgrade astrbot --python 3.12
+cd dashboard
+pnpm install   # 仅首次需要；未安装 pnpm 可先执行 npm install -g pnpm
+pnpm dev
 ```
 
-### Docker Deployment
+默认运行在 `http://localhost:3000`。
 
-For users familiar with containers and looking for a more stable, production-ready deployment method, we recommend deploying AstrBot with Docker / Docker Compose.
+## 部署
 
-Please refer to the official documentation: [Deploy AstrBot with Docker](https://docs.astrbot.app/deploy/astrbot/docker.html#%E4%BD%BF%E7%94%A8-docker-%E9%83%A8%E7%BD%B2-astrbot).
+本分支与上游保持一致的部署方式，推荐参考官方文档：
 
-### Desktop Application Deployment
+- [Docker / Docker Compose 部署](https://docs.astrbot.app/deploy/astrbot/docker.html)
+- [手动部署（基于源码与 uv）](https://docs.astrbot.app/deploy/astrbot/cli.html)
+- [宝塔面板](https://docs.astrbot.app/deploy/astrbot/btpanel.html) / [1Panel](https://docs.astrbot.app/deploy/astrbot/1panel.html) / [CasaOS](https://docs.astrbot.app/deploy/astrbot/casaos.html)
 
-For users who want to use AstrBot on desktop and mainly use ChatUI, we recommend AstrBot App.
+## 支持的平台与模型
 
-Visit [AstrBot-desktop](https://github.com/AstrBotDevs/AstrBot-desktop) to download and install; this method is designed for desktop usage and is not recommended for server scenarios.
+支持 QQ、OneBot v11、Telegram、企业微信、微信公众号、飞书、钉钉、Slack、Discord、LINE、KOOK、Misskey、Mattermost 等消息平台，以及 OpenAI 兼容服务、Anthropic、Google Gemini、DeepSeek、Ollama 等主流模型服务。
 
-### Launcher Deployment
+完整清单请参考上游文档：[支持的消息平台](https://docs.astrbot.app/) ｜ [支持的模型服务](https://docs.astrbot.app/)。
 
-For desktop users who also want fast deployment and isolated multi-instance usage, we recommend AstrBot Launcher.
+## 开发与贡献
 
-Visit [AstrBot Launcher](https://github.com/Raven95676/astrbot-launcher) to download and install.
-
-**More deployment methods**
-
-If you need panel-based management or deeper customization, see [BT-Panel Deployment](https://docs.astrbot.app/deploy/astrbot/btpanel.html) for BT Panel app-store setup, [1Panel Deployment](https://docs.astrbot.app/deploy/astrbot/1panel.html) for 1Panel app-market deployment, [CasaOS Deployment](https://docs.astrbot.app/deploy/astrbot/casaos.html) for NAS/home-server visual deployment, and [Manual Deployment](https://docs.astrbot.app/deploy/astrbot/cli.html) for fully custom source-based installation with `uv`.
-
-
-## ❤️ Sponsors
-
-Welcome to sponsor us via [Afdian](https://afdian.com/a/astrbot_team) or [contact us](mailto:community@astrbot.app).
-
-<p align="center">
-  <a target="_blank" href="https://astrbot.app/#/sponsors">
-    <img alt="sponsors" src="https://sponsors.astrbot.app/?v=1">
-  </a>
-</p>
-
-
-## Supported Messaging Platforms
-
-Connect AstrBot to your favorite chat platform.
-
-| Platform | Maintainer |
-|---------|---------------|
-| QQ | Official |
-| OneBot v11 protocol implementation | Official |
-| Telegram | Official |
-| Wecom & Wecom AI Bot | Official |
-| WeChat Official Accounts | Official |
-| Feishu (Lark) | Official |
-| DingTalk | Official |
-| Slack | Official |
-| Discord | Official |
-| LINE | Official |
-| Satori | Official |
-| KOOK | Official |
-| Misskey | Official |
-| Mattermost | Official |
-| WhatsApp (Coming Soon) | Official |
-| [Matrix](https://github.com/stevessr/astrbot_plugin_matrix_adapter) | Community |
-| [Rocket.Chat](https://github.com/NET-Homeless/astrbot_plugin_rocket_chat_adapter) | Community |
-| [VoceChat](https://github.com/HikariFroya/astrbot_plugin_vocechat) | Community |
-
-## Supported Model Services
-
-| Service | Type |
-|---------|---------------|
-| OpenAI and Compatible Services | LLM Services |
-| Anthropic | LLM Services |
-| Google Gemini | LLM Services |
-| Moonshot AI | LLM Services |
-| Zhipu AI | LLM Services |
-| DeepSeek | LLM Services |
-| Ollama (Self-hosted) | LLM Services |
-| LM Studio (Self-hosted) | LLM Services |
-| [MiraRouter](https://mirarouter.com/) | LLM Services (API Gateway, supports all models) |
-| [AIHubMix](https://aihubmix.com/?aff=4bfH) | LLM Services (API Gateway, supports all models) |
-| [CompShare](https://www.compshare.cn/?ytag=GPU_YY-gh_astrbot&referral_code=FV7DcGowN4hB5UuXKgpE74) | LLM Services |
-| [302.AI](https://share.302.ai/rr1M3l) | LLM Services |
-| [TokenPony](https://www.tokenpony.cn/3YPyf) | LLM Services |
-| [SiliconFlow](https://docs.siliconflow.cn/cn/usercases/use-siliconcloud-in-astrbot) | LLM Services |
-| [PPIO Cloud](https://ppio.com/user/register?invited_by=AIOONE) | LLM Services |
-| ModelScope | LLM Services |
-| OneAPI | LLM Services |
-| Dify | LLMOps Platforms |
-| Alibaba Cloud Bailian Applications | LLMOps Platforms |
-| Coze | LLMOps Platforms |
-| OpenAI Whisper | Speech-to-Text Services |
-| SenseVoice | Speech-to-Text Services |
-| Xiaomi MiMo Omni | Speech-to-Text Services |
-| OpenAI TTS | Text-to-Speech Services |
-| Gemini TTS | Text-to-Speech Services |
-| GPT-Sovits-Inference | Text-to-Speech Services |
-| GPT-Sovits | Text-to-Speech Services |
-| FishAudio | Text-to-Speech Services |
-| Edge TTS | Text-to-Speech Services |
-| Alibaba Cloud Bailian TTS | Text-to-Speech Services |
-| Azure TTS | Text-to-Speech Services |
-| Minimax TTS | Text-to-Speech Services |
-| Xiaomi MiMo TTS | Text-to-Speech Services |
-| Volcano Engine TTS | Text-to-Speech Services |
-
-## ❤️ Contributing
-
-Issues and Pull Requests are always welcome! Feel free to submit your changes to this project :)
-
-### How to Contribute
-
-You can contribute by reviewing issues or helping with pull request reviews. Any issues or PRs are welcome to encourage community participation. Of course, these are just suggestions—you can contribute in any way you like. For adding new features, please discuss through an Issue first.
-
-### Development Environment
-
-AstrBot uses `ruff` for code formatting and linting.
+本项目使用 `ruff` 进行代码格式化与静态检查，并通过 `pre-commit` 在提交前自动执行：
 
 ```bash
-git clone https://github.com/AstrBotDevs/AstrBot
 pip install pre-commit
 pre-commit install
+
+# 也可手动执行
+ruff format .
+ruff check .
 ```
 
+修改 WebUI 时请保持组件化与整洁的代码风格；当后端接口或 OpenAPI 定义发生变化时，请在 `dashboard` 目录执行 `pnpm generate:api` 重新生成前端 API 客户端。
 
-## 🌍 Community
+欢迎提交 Issue 与 Pull Request。上游项目相关的功能建议与问题，也可反馈至 [AstrBot 仓库](https://github.com/AstrBotDevs/AstrBot/issues)。
 
-### QQ Groups
+## 许可证与合规
 
-We have 15+ chat groups, please see: [Community](https://docs.astrbot.app/community.html) for details.
+- 本项目基于 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 修改，遵循 **GNU AGPL-3.0-or-later**，完整条款见 [LICENSE](LICENSE)。
+- 对本仓库的修改声明、以及内置第三方插件的来源与许可信息，见 [NOTICE](NOTICE)。
+- `data/plugins/` 下的插件均为独立作品，各自保留其原有版权与许可（如 `emoticon_manager` 采用 MIT）。若您是权利人并认为某个插件在未获授权的情况下被分发，请联系维护者以便更正或移除。
+- 使用本项目还需遵守 [EULA](EULA.md) 与上游项目相关条款。
 
-### Discord Server
+## 鸣谢
 
-<a href="https://discord.gg/hAVk6tgV36"><img alt="Discord_community" src="https://img.shields.io/badge/Discord-AstrBot-purple?style=for-the-badge&color=76bad9"></a>
+感谢上游 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 及所有 Contributors 与插件开发者 ❤️
 
-## ❤️ Special Thanks
+开源伙伴 ❤️
 
-Special thanks to all Contributors and plugin developers for their contributions to AstrBot ❤️
-
-<a href="https://github.com/AstrBotDevs/AstrBot/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=AstrBotDevs/AstrBot&max=300&columns=15" />
-</a>
-
-Open Source Friends ❤️
-
-- [NapNeko/NapCatQQ](https://github.com/NapNeko/NapCatQQ) - The amazing cat framework
-- [Mai-with-u/MaiBot](https://github.com/Mai-with-u/MaiBot) - The powerful "digital life" in your QQ! 
-
-## ⭐ Star History
-
-> [!TIP]
-> If this project has helped you in your life or work, or if you're interested in its future development, please give the project a Star. It's the driving force behind maintaining this open-source project <3
+- [NapNeko/NapCatQQ](https://github.com/NapNeko/NapCatQQ) - 出色的猫猫框架
+- [Mai-with-u/MaiBot](https://github.com/Mai-with-u/MaiBot) - QQ 中强大的“数字生命”
 
 <div align="center">
 
-[![Star History Chart](https://api.star-history.com/svg?repos=astrbotdevs/astrbot&type=Date)](https://star-history.com/#astrbotdevs/astrbot&Date)
+_陪伴与能力从来不应该是对立面。我们希望创造的是一个既能理解情绪、给予陪伴，也能可靠完成工作的机器人。_
 
-</div>
-
-<div align="center">
-
-_Companionship and capability should never be at odds. What we aim to create is a robot that can understand emotions, provide genuine companionship, and reliably accomplish tasks._
-
-_私は、高性能ですから!_
-
-<img src="https://files.astrbot.app/watashiwa-koseino-desukara.gif" width="100"/>
 </div>

@@ -119,14 +119,15 @@ class MemoryCtxPlugin(Star):
                 self.logger.error(f"failed to register {path}: {exc}", exc_info=True)
 
     async def _register_crons(self) -> None:
+        """Register the off-peak maintenance jobs.
+
+        Per-turn compression is driven by the ``after_message_sent`` hook, so a
+        timer must never fold history while a conversation is still ongoing.
+        Only the off-peak daily and weekly passes are scheduled here.
+        """
         cron_manager = self.context.cron_manager
         timezone = str(self.config.get("timezone", "Asia/Shanghai"))
         jobs = [
-            (
-                "incremental",
-                str(self.config.get("incremental_cron", "0 */2 * * *")),
-                self._job_incremental,
-            ),
             (
                 "global",
                 str(self.config.get("global_cron", "30 0 * * *")),
@@ -154,9 +155,6 @@ class MemoryCtxPlugin(Star):
                     f"failed to register cron {name}: {exc}", exc_info=True
                 )
 
-    async def _job_incremental(self) -> None:
-        await self.engine.run_incremental()
-
     async def _job_global(self) -> None:
         await self.engine.run_global()
 
@@ -181,6 +179,42 @@ class MemoryCtxPlugin(Star):
             await self.engine.guard_request(event, req)
         except Exception as exc:
             self.logger.error(f"context guard failed: {exc}", exc_info=True)
+
+    @filter.on_agent_done()
+    async def _mark_turn_done(
+        self, event: AstrMessageEvent, run_context: Any, response: Any
+    ) -> None:
+        """Mark that the agent finished generating the reply.
+
+        The marker lets the post-send hook tell a finished conversation turn
+        apart from the intermediate sends of a tool loop.
+
+        Args:
+            event: The message event.
+            run_context: The agent run context.
+            response: The final LLM response.
+        """
+        event.set_extra("_memory_turn_done", True)
+
+    @filter.after_message_sent()
+    async def compress_after_turn(self, event: AstrMessageEvent) -> None:
+        """Compress the session only after the whole reply has been delivered.
+
+        Context compression is deliberately gated to the end of a conversation
+        turn: folding history while the model is still answering would corrupt
+        the ongoing context.
+
+        Args:
+            event: The message event.
+        """
+        if not event.get_extra("_memory_turn_done"):
+            return
+        try:
+            await self.engine.compress_session(
+                event.unified_msg_origin, reason="turn_end"
+            )
+        except Exception as exc:
+            self.logger.error(f"post-turn compression failed: {exc}", exc_info=True)
 
     @filter.llm_tool(name="search_memory")
     async def search_memory(
@@ -305,6 +339,7 @@ class MemoryCtxPlugin(Star):
             {
                 "id": row.id,
                 "umo": row.umo,
+                "bot": str(row.umo or "").split(":", 1)[0],
                 "session_type": row.session_type,
                 "tier": row.tier,
                 "period_key": row.period_key,
@@ -356,6 +391,17 @@ class MemoryCtxPlugin(Star):
         memory rows, so a session that had never been compressed was invisible
         in the panel.
         """
+        platform_types: dict[str, str] = {}
+        try:
+            core_config = self.context.get_config()
+            platforms = core_config.get("platform", []) if core_config else []
+        except Exception as exc:
+            self.logger.warning(f"read platform config failed: {exc}")
+            platforms = []
+        for platform in platforms or []:
+            pid = str(platform.get("id") or "").strip()
+            if pid:
+                platform_types[pid] = str(platform.get("type") or "")
         stats = {row["umo"]: row for row in await self.store.list_umo_summaries()}
         try:
             cursors = await self.store.list_cursors()
@@ -383,6 +429,7 @@ class MemoryCtxPlugin(Star):
             items.append(
                 {
                     "umo": umo,
+                    "bot": str(umo).split(":", 1)[0],
                     "platform_id": str(getattr(conv, "platform_id", "") or ""),
                     "session_type": stat.get("session_type")
                     or self.engine.session_type(umo),
@@ -401,6 +448,7 @@ class MemoryCtxPlugin(Star):
             items.append(
                 {
                     "umo": umo,
+                    "bot": str(umo).split(":", 1)[0],
                     "platform_id": "",
                     "session_type": stat.get("session_type") or "",
                     "messages": 0,
@@ -418,7 +466,15 @@ class MemoryCtxPlugin(Star):
             ),
             reverse=True,
         )
-        return {"items": items}
+        bot_ids = sorted(
+            {str(item.get("bot") or "") for item in items if item.get("bot")}
+            | set(platform_types)
+        )
+        bots = [
+            {"id": pid, "label": pid, "type": platform_types.get(pid, "")}
+            for pid in bot_ids
+        ]
+        return {"items": items, "bots": bots}
 
     async def _api_delete_memory(self) -> dict:
         body = await request.json(default={}) or {}
@@ -503,7 +559,6 @@ class MemoryCtxPlugin(Star):
             "offpeak_start",
             "offpeak_end",
             "defer_if_offpeak_within_minutes",
-            "incremental_cron",
             "global_cron",
             "weekly_cron",
             "timezone",

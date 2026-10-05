@@ -1,9 +1,10 @@
-﻿{
+{
     "hero": {
         "title": "AstrBot",
         "subtitle": "Проект, рожденный из интереса и любви ❤️",
         "starButton": "Star этот проект! 🌟",
-        "issueButton": "Сообщить об ошибке"
+        "issueButton": "Сообщить об ошибке",
+        "sourceButton": "Исходный код (AGPL-3.0)"
     },
     "contributors": {
         "title": "Контрибьюторы",

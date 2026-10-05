@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 # Python related
 __pycache__
 .mypy_cache
@@ -20,7 +22,24 @@ cookies.json
 # Data files
 data_v2.db
 data_v3.db
-data
+# Runtime data directory; only bundled plugins are tracked in git.
+data/*
+!data/plugins/
+# Plugins not bundled in this fork (kept locally only, never committed).
+data/plugins/astrbot_plugin_broadcast/
+data/plugins/astrbot_plugin_iamthinking/
+data/plugins/astrbot_plugin_memory_beyond/
+data/plugins/astrbot_plugin_proactive_chat/
+data/plugins/astrbot_plugin_qq_proactive_md/
+data/plugins/astrbot_plugin_qq_tools/
+data/plugins/astrbot_plugin_qqadmin/
+data/plugins/astrbot_plugin_status/
+data/plugins/astrbot_plugin_private_companion/
+# Third-party fonts bundled by the FTV plugin are not redistributed with this
+# repo. hanyi.otf (汉仪文黑, commercial) and mi.ttf (no license info) must
+# never be committed; the OFL/Noto fonts may be added only if desired.
+data/plugins/astrbot_plugin_ftv/fonts/hanyi.otf
+data/plugins/astrbot_plugin_ftv/fonts/mi.ttf
 configs/session
 configs/config.yaml
 cmd_config.json
@@ -65,3 +84,18 @@ GenieData/
 .worktrees/
 
 dashboard/bun.lock
+
+# Secrets and credentials (never commit)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json
+
+# Local deployment artifacts
+_zj_trust.ps1
+astrbot_plugin_qq_proactive_md.zip
+*.tmp

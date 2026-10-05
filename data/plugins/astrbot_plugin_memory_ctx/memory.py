@@ -1,8 +1,9 @@
 """Compression engine for the memory-context plugin.
 
-The engine implements the "scheduled compression + discard" strategy:
+The engine implements the "compress at conversation end + discard" strategy:
 
-* an incremental pass folds older turns into a rolling summary;
+* a turn-end pass folds older turns into a rolling summary once the reply has
+  been delivered;
 * a daily off-peak pass merges and purges expired records;
 * a weekly pass aggregates daily memories into long-term memory;
 * a request guard keeps every session under the token ceiling and triggers
@@ -524,7 +525,8 @@ class MemoryEngine:
 
         Args:
             umo: Unified message origin.
-            reason: Trigger source, ``incremental`` / ``global`` / ``emergency`` / ``manual``.
+            reason: Trigger source, ``turn_end`` / ``incremental`` / ``global`` /
+                ``emergency`` / ``manual``.
             force: Re-summarize even when only a previous summary exists.
 
         Returns:

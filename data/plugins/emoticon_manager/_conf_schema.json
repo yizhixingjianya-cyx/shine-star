@@ -9,11 +9,7 @@
     "description": "表情选择 策略",
     "type": "string",
     "default": "random",
-    "options": [
-      "random",
-      "round_robin",
-      "tag"
-    ],
+    "options": ["random", "round_robin", "tag"],
     "hint": "random：随机挑选，避免连续两次重复。\nround_robin：按文件名顺序轮流发送，同一轮内不重复。\ntag：情感匹配，只总结机器人本次输出的内容判断情感标签，挑选带对应标签的表情包（需开启下方「情感匹配 总开关」，并在管理页面为表情打标签）。"
   },
   "emotion_match_enabled": {
@@ -45,35 +41,5 @@
     "type": "int",
     "default": 10,
     "hint": "范围 0-3600 秒，默认 10。\n防止一次对话连续刷出多张表情；0 表示不限制。"
-  },
-  "md_send_enabled": {
-    "description": "Markdown 图片发送 总开关",
-    "type": "bool",
-    "default": true,
-    "hint": "开启：用 markdown 图片语法发送表情（图片通过本地图床变成公网 URL），可把表情直接拼在同一条消息后面。\n需要平台支持 markdown（如 QQ 官方机器人），并填写下方「图床对外地址」。\n关闭：回落为原来的普通图片消息。"
-  },
-  "md_attach_to_reply": {
-    "description": "拼接到同一条回复消息",
-    "type": "bool",
-    "default": true,
-    "hint": "开启：表情直接拼在触发它的那条机器人回复后面（同一个气泡，图+文一条消息）。\n关闭：仍单独补发一条表情消息（区别只是走 markdown 格式）。"
-  },
-  "md_max_width": {
-    "description": "显示宽上限(px)",
-    "type": "int",
-    "default": 240,
-    "hint": "表情在聊天里显示的宽上限，超过则等比缩小（只缩小、不放大）。默认 240。"
-  },
-  "md_max_height": {
-    "description": "显示高上限(px)",
-    "type": "int",
-    "default": 240,
-    "hint": "表情在聊天里显示的高上限，超过则等比缩小（只缩小、不放大）。默认 240。"
-  },
-  "md_scale": {
-    "description": "最终缩放系数",
-    "type": "float",
-    "default": 1.0,
-    "hint": "在「显示上限」缩小的基础上再整体乘一个系数，用来微调像素缩放。\n1.0=不额外缩放；0.8=再缩小到 80%；1.2=再放大到 120%。范围建议 0.2-3.0。"
   }
 }

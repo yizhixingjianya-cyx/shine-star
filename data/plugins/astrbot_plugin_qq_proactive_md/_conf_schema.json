@@ -1,7 +1,0 @@
-{
-  "markdown_fallback_to_plain": {
-    "description": "平台以「不允许发送原生 markdown」拒绝时，自动降级为纯文本重试（推荐开启）。",
-    "type": "bool",
-    "default": true
-  }
-}

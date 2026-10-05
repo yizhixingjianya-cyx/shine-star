@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 import asyncio
 import ipaddress
 import mimetypes
@@ -168,6 +170,42 @@ class _ProxyAwareHypercornLogger(HypercornLogger):
         if client_host:
             atoms["h"] = client_host
         return atoms
+
+
+class _ClientDisconnectGuard:
+    """ASGI wrapper that discards transport errors caused by client disconnects.
+
+    A browser may vanish without closing the socket (network loss, closed tab,
+    NAT or proxy timeout). The response body write then fails with a
+    ``ConnectionError`` or ``TimeoutError`` after the response has already
+    started. Those are not server faults, so this wrapper -- sitting outside
+    Starlette's error middleware -- swallows them instead of letting them
+    surface as an unhandled exception traceback. Transport errors raised before
+    the response starts are left untouched so genuine failures stay visible.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        response_started = False
+
+        async def send_wrapper(message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except (ConnectionError, TimeoutError):
+            if response_started:
+                return
+            raise
 
 
 class AstrBotDashboard:
@@ -608,7 +646,9 @@ class AstrBotDashboard:
             config.access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
 
         return serve(
-            cast(Any, self.asgi_app), config, shutdown_trigger=self.shutdown_trigger
+            cast(Any, _ClientDisconnectGuard(self.asgi_app)),
+            config,
+            shutdown_trigger=self.shutdown_trigger,
         )
 
     async def shutdown_trigger(self) -> None:

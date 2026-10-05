@@ -13,6 +13,10 @@
                         variant="tonal" prepend-icon="mdi-comment-question">
                         {{ tm('hero.issueButton') }}
                     </v-btn>
+                    <v-btn class="ml-4" @click="open('https://github.com/fishpond-studio/shine-stars')" color="secondary" size="small"
+                        variant="tonal" prepend-icon="mdi-source-branch">
+                        {{ tm('hero.sourceButton') }}
+                    </v-btn>
                 </div>
             </div>
         </div>

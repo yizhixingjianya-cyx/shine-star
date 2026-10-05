@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 aiocqhttp>=1.4.4
 aiodocker>=0.24.0
 aiohttp>=3.11.18
@@ -14,7 +16,7 @@ dashscope>=1.23.2
 deprecated>=1.2.18
 dingtalk-stream>=0.22.1
 docstring-parser>=0.16
-faiss-cpu>=1.12.0
+faiss-cpu>=1.14.3
 fastapi>=0.124.0
 filelock>=3.18.0
 google-genai>=1.56.0

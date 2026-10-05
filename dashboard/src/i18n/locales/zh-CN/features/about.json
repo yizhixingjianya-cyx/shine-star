@@ -3,7 +3,8 @@
     "title": "AstrBot",
     "subtitle": "A project out of interests and loves ❤️",
     "starButton": "Star 这个项目! 🌟",
-    "issueButton": "提交 Issue"
+    "issueButton": "提交 Issue",
+    "sourceButton": "源代码（AGPL-3.0）"
   },
   "contributors": {
     "title": "贡献者",

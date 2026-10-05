@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 import asyncio
 import traceback
 from asyncio import Queue
@@ -214,6 +216,23 @@ class PlatformManager:
                 f"Platform adapter not found: {platform_config['type']}({platform_config['id']}).",
             )
             return
+
+        # Changing the account of an existing platform reuses the same id, so
+        # release any instance already loaded for this id before starting the
+        # new one. Otherwise a previous connection can linger, for example when
+        # two reloads overlap and one instance is left untracked.
+        target_id = platform_config["id"]
+        if target_id in self._inst_map:
+            await self.terminate_platform(target_id)
+        for orphan in [
+            item for item in self.platform_insts if item.config.get("id") == target_id
+        ]:
+            await self._terminate_inst_and_tasks(orphan)
+            try:
+                self.platform_insts.remove(orphan)
+            except ValueError:
+                pass
+
         cls_type = platform_cls_map[platform_config["type"]]
         inst: Platform = cls_type(platform_config, self.settings, self.event_queue)
         self._inst_map[platform_config["id"]] = {

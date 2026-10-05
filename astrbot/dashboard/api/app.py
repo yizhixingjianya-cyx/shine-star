@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -170,10 +172,21 @@ def create_dashboard_asgi_app(
 
     @app.exception_handler(Exception)
     async def catch_all_handler(_request: Request, exc: Exception):
-        LogManager.GetLogger("astrbot.dashboard").error(
-            "Unhandled exception in dashboard API",
-            exc_info=exc,
-        )
+        log = LogManager.GetLogger("astrbot.dashboard")
+        if isinstance(exc, (ConnectionError, TimeoutError)):
+            # A client that drops the connection while the response body is
+            # being streamed (network loss, closed tab, NAT/proxy timeout)
+            # surfaces here as a transport error. It is not a server fault, so
+            # keep the log concise instead of dumping a full traceback.
+            log.warning(
+                f"Dashboard client disconnected while sending response: "
+                f"{type(exc).__name__}: {exc}"
+            )
+        else:
+            log.error(
+                "Unhandled exception in dashboard API",
+                exc_info=exc,
+            )
         return JSONResponse(
             error("Internal server error"),
             status_code=500,

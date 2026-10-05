@@ -3,7 +3,8 @@
     "title": "AstrBot",
     "subtitle": "A project out of interests and loves ❤️",
     "starButton": "Star this project! 🌟",
-    "issueButton": "Submit Issue"
+    "issueButton": "Submit Issue",
+    "sourceButton": "Source Code (AGPL-3.0)"
   },
   "contributors": {
     "title": "Contributors",

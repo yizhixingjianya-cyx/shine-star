@@ -1,0 +1,48 @@
+NOTICE
+======
+
+shine-stars
+A modified fork of AstrBot.
+
+  Upstream project : AstrBot
+  Upstream source  : https://github.com/AstrBotDevs/AstrBot
+  Upstream license : GNU Affero General Public License v3.0 (AGPL-3.0)
+  Base version     : AstrBot 4.28.0-beta.1
+
+The original AstrBot copyright notices and the full AGPL-3.0 license text
+(see the LICENSE file) are retained. This fork is distributed under the same
+AGPL-3.0-or-later terms declared in pyproject.toml.
+
+Statement of modifications
+--------------------------
+Source files in this repository have been modified from the upstream AstrBot
+project. Additional third-party AstrBot plugins are bundled under data/plugins/.
+The modifications were made by the shine-stars maintainers in 2026.
+
+Because this is a modified version distributed under the AGPL-3.0, users who
+interact with a deployed instance over a network are entitled to the
+corresponding source code, available at:
+
+  https://github.com/fishpond-studio/shine-stars
+
+Bundled third-party plugins
+---------------------------
+Plugins under data/plugins/ are independent works and are NOT part of upstream
+AstrBot. Each plugin retains its own license and copyright, as declared in its
+own metadata.yaml and/or upstream repository. Only the plugins listed below are
+bundled in this repository; other plugins used during development are kept
+locally and are not distributed.
+
+  - astrbot_plugin_cmd_uploader / "指令面板" (cyx) - not published
+  - astrbot_plugin_ftv / "FTV 兽频道" (cyx) - not published
+  - astrbot_plugin_furrywill / "每日鉴毛" (cyx) - not published
+  - astrbot_plugin_group_gate / "群聊准入" (TRAE) - not published
+  - astrbot_plugin_memory_ctx / "记忆压缩与上下文管理" (TRAE) - not published
+  - emoticon_manager / "情绪表情包" (@bilibili彩凌) - not published
+      license: MIT (as declared in metadata.yaml)
+
+None of the bundled plugins currently ship a LICENSE file; they are bundled for
+functionality only, and their licensing follows their upstream project and/or
+metadata.yaml. If you are a rights holder and believe any bundled plugin is
+distributed without proper authorization, please contact the maintainers so it
+can be corrected or removed.

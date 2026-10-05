@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 from __future__ import annotations
 
 import asyncio
@@ -14,6 +16,7 @@ import botpy.message
 from botpy import Client
 from botpy.connection import ConnectionState
 from botpy.gateway import BotWebSocket
+from botpy.types.message import MarkdownPayload
 
 from astrbot import logger
 from astrbot.api.event import MessageChain
@@ -180,10 +183,18 @@ class ManagedBotWebSocket(BotWebSocket):
 
 # QQ 机器人官方框架
 class botClient(Client):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        shard_count: int = 0,
+        shard_ids: list[int] | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._shutting_down = False
         self._active_websockets: set[ManagedBotWebSocket] = set()
+        self._shard_count = max(0, int(shard_count or 0))
+        self._shard_ids = list(shard_ids) if shard_ids else None
 
     def set_platform(self, platform: QQOfficialPlatformAdapter) -> None:
         self.platform = platform
@@ -268,6 +279,72 @@ class botClient(Client):
         finally:
             self._active_websockets.discard(websocket)
 
+    async def _bot_init(self, token: Any) -> Any:
+        """Override botpy's connection bootstrap to apply the shard plan.
+
+        Args:
+            token: botpy token object passed through the login flow.
+
+        Returns:
+            The session pool coroutine, or ``None`` when the pool stops.
+        """
+        concurrency = self._ws_ap["session_start_limit"]["max_concurrency"] or 1
+        session_interval = round(5 / concurrency)
+        return await self._pool_init(token.bot_token(), session_interval)
+
+    async def _pool_init(self, token: Any, session_interval: int) -> Any:
+        """Create one websocket session per configured shard.
+
+        The total shard count falls back to the value recommended by
+        ``/gateway/bot`` when not configured. Each session advertises its own
+        ``[shard_id, shard_count]`` so events can be split across instances.
+
+        Args:
+            token: botpy token object used by every shard session.
+            session_interval: Delay before opening each session.
+
+        Returns:
+            The session pool coroutine, or ``None`` when the pool stops.
+
+        Raises:
+            ValueError: If a configured shard id is out of range.
+        """
+        total = self._shard_count or int(self._ws_ap.get("shards", 1) or 1)
+        if total < 1:
+            total = 1
+        shard_ids = self._shard_ids or list(range(total))
+        for shard_id in shard_ids:
+            if shard_id < 0 or shard_id >= total:
+                raise ValueError(
+                    f"[QQOfficial] Invalid shard id {shard_id} for total {total}."
+                )
+        logger.info(
+            f"[QQOfficial] Shard plan: total={total}, this instance={shard_ids}"
+        )
+
+        for shard_id in shard_ids:
+            self._connection.add(
+                {
+                    "session_id": "",
+                    "last_seq": 0,
+                    "intent": self.intents,
+                    "token": token,
+                    "url": self._ws_ap["url"],
+                    "shards": {"shard_id": shard_id, "shard_count": total},
+                }
+            )
+
+        while not self.is_closed():
+            coroutine = self._connection.multi_run(session_interval)
+            if self.ret_coro:
+                return coroutine
+            if coroutine:
+                await coroutine
+            else:
+                await self.close()
+                logger.info("[QQOfficial] Service stopped unexpectedly.")
+        return None
+
     async def shutdown(self) -> None:
         if self.is_shutting_down:
             return
@@ -294,6 +371,29 @@ class QQOfficialPlatformAdapter(Platform):
         self.secret = platform_config["secret"]
         qq_group = platform_config["enable_group_c2c"]
         guild_dm = platform_config["enable_guild_direct_message"]
+        # 旧存档配置没有该键，缺省视为启用 Markdown，与历史行为一致
+        self.use_markdown_default = platform_config.get("use_markdown", True)
+
+        # 分片负载均衡：shard_count 为 0 表示按 QQ 官方建议自动分片；
+        # shard_ids 为空表示本实例负责全部分片，否则只连接列出的分片。
+        try:
+            self.shard_count = int(platform_config.get("shard_count") or 0)
+        except (TypeError, ValueError):
+            self.shard_count = 0
+        self.shard_ids: list[int] = []
+        raw_shard_ids = platform_config.get("shard_ids") or ""
+        if isinstance(raw_shard_ids, str):
+            raw_shard_ids = raw_shard_ids.replace("，", ",")
+            parts = [p.strip() for p in raw_shard_ids.split(",") if p.strip()]
+        elif isinstance(raw_shard_ids, (list, tuple, set)):
+            parts = list(raw_shard_ids)
+        else:
+            parts = [raw_shard_ids]
+        for part in parts:
+            try:
+                self.shard_ids.append(int(part))
+            except (TypeError, ValueError):
+                logger.warning(f"[QQOfficial] Ignore invalid shard id: {part!r}")
 
         if qq_group:
             self.intents = botpy.Intents(
@@ -310,6 +410,8 @@ class QQOfficialPlatformAdapter(Platform):
             intents=self.intents,
             bot_log=False,
             timeout=20,
+            shard_count=self.shard_count,
+            shard_ids=self.shard_ids or None,
         )
 
         self.client.set_platform(self)
@@ -396,7 +498,14 @@ class QQOfficialPlatformAdapter(Platform):
             )
             return
 
-        payload: dict[str, Any] = {"content": plain_text}
+        use_md = getattr(message_chain, "use_markdown_", None)
+        if use_md is False or (use_md is None and not self.use_markdown_default):
+            payload: dict[str, Any] = {"content": plain_text}
+        else:
+            payload = {
+                "markdown": MarkdownPayload(content=plain_text) if plain_text else None,
+                "msg_type": 2,
+            }
         if msg_id and not allow_group_proactive_send:
             payload["msg_id"] = msg_id
         ret: Any = None
@@ -414,6 +523,8 @@ class QQOfficialPlatformAdapter(Platform):
                     )
                     payload["media"] = media
                     payload["msg_type"] = 7
+                    payload.pop("markdown", None)
+                    payload["content"] = plain_text or None
                 if record_file_path:
                     media = await QQOfficialMessageEvent.upload_group_and_c2c_media(
                         send_helper,  # type: ignore
@@ -424,6 +535,8 @@ class QQOfficialPlatformAdapter(Platform):
                     if media:
                         payload["media"] = media
                         payload["msg_type"] = 7
+                        payload.pop("markdown", None)
+                        payload["content"] = plain_text or None
                 if video_file_source:
                     media = await QQOfficialMessageEvent.upload_group_and_c2c_media(
                         send_helper,  # type: ignore
@@ -434,6 +547,8 @@ class QQOfficialPlatformAdapter(Platform):
                     if media:
                         payload["media"] = media
                         payload["msg_type"] = 7
+                        payload.pop("markdown", None)
+                        payload["content"] = plain_text or None
                         payload.pop("msg_id", None)
                 if file_source:
                     media = await QQOfficialMessageEvent.upload_group_and_c2c_media(
@@ -446,17 +561,29 @@ class QQOfficialPlatformAdapter(Platform):
                     if media:
                         payload["media"] = media
                         payload["msg_type"] = 7
+                        payload.pop("markdown", None)
+                        payload["content"] = plain_text or None
                         payload.pop("msg_id", None)
-                ret = await self.client.api.post_group_message(
-                    group_openid=session.session_id,
-                    **payload,
+                ret = await QQOfficialMessageEvent._send_with_markdown_fallback(
+                    send_func=lambda retry_payload: self.client.api.post_group_message(
+                        group_openid=session.session_id,
+                        **retry_payload,
+                    ),
+                    payload=payload,
+                    plain_text=plain_text,
                 )
             else:
                 if image_path:
                     payload["file_image"] = image_path
-                ret = await self.client.api.post_message(
-                    channel_id=session.session_id,
-                    **payload,
+                # Guild text-channel send API does not use the QQ v2 msg_type field.
+                payload.pop("msg_type", None)
+                ret = await QQOfficialMessageEvent._send_with_markdown_fallback(
+                    send_func=lambda retry_payload: self.client.api.post_message(
+                        channel_id=session.session_id,
+                        **retry_payload,
+                    ),
+                    payload=payload,
+                    plain_text=plain_text,
                 )
 
         elif session.message_type == MessageType.FRIEND_MESSAGE:
@@ -473,6 +600,8 @@ class QQOfficialPlatformAdapter(Platform):
                 )
                 payload["media"] = media
                 payload["msg_type"] = 7
+                payload.pop("markdown", None)
+                payload["content"] = plain_text or None
             if record_file_path:
                 media = await QQOfficialMessageEvent.upload_group_and_c2c_media(
                     send_helper,  # type: ignore
@@ -483,6 +612,8 @@ class QQOfficialPlatformAdapter(Platform):
                 if media:
                     payload["media"] = media
                     payload["msg_type"] = 7
+                    payload.pop("markdown", None)
+                    payload["content"] = plain_text or None
             if video_file_source:
                 media = await QQOfficialMessageEvent.upload_group_and_c2c_media(
                     send_helper,  # type: ignore
@@ -493,6 +624,8 @@ class QQOfficialPlatformAdapter(Platform):
                 if media:
                     payload["media"] = media
                     payload["msg_type"] = 7
+                    payload.pop("markdown", None)
+                    payload["content"] = plain_text or None
             if file_source:
                 media = await QQOfficialMessageEvent.upload_group_and_c2c_media(
                     send_helper,  # type: ignore
@@ -504,11 +637,17 @@ class QQOfficialPlatformAdapter(Platform):
                 if media:
                     payload["media"] = media
                     payload["msg_type"] = 7
+                    payload.pop("markdown", None)
+                    payload["content"] = plain_text or None
 
-            ret = await QQOfficialMessageEvent.post_c2c_message(
-                send_helper,  # type: ignore
-                openid=session.session_id,
-                **payload,
+            ret = await QQOfficialMessageEvent._send_with_markdown_fallback(
+                send_func=lambda retry_payload: QQOfficialMessageEvent.post_c2c_message(
+                    send_helper,  # type: ignore
+                    openid=session.session_id,
+                    **retry_payload,
+                ),
+                payload=payload,
+                plain_text=plain_text,
             )
         else:
             logger.warning(

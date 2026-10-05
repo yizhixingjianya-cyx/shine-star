@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 
+from sqlalchemy import inspect
 from sqlmodel import Field, SQLModel, col, delete, select
 
 
@@ -50,6 +51,17 @@ class GateCode(SQLModel, table=True):
     used_by: str = Field(default="")
 
 
+class GateBot(SQLModel, table=True):
+    """A platform adapter (bot) that is exempt from the group gate."""
+
+    __tablename__ = "gate_bot"
+    __table_args__ = {"extend_existing": True}
+
+    bot: str = Field(primary_key=True)
+    open_all: bool = Field(default=False, index=True)
+    updated_at: int = Field(default_factory=now_ts)
+
+
 class GateStore:
     """Persistence helper for the group whitelist and registration codes."""
 
@@ -61,10 +73,50 @@ class GateStore:
         """
         self.db = db
 
-    async def ensure_tables(self) -> None:
-        """Create the plugin tables when they are missing."""
-        async with self.db.engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
+    async def ensure_tables(self, retries: int = 3) -> list[str]:
+        """Create the plugin tables and report any that are still missing.
+
+        Creation is retried because a transient database error would otherwise
+        leave the plugin running without its tables, which silently disables the
+        group gate.
+
+        Args:
+            retries: Number of creation attempts before giving up.
+
+        Returns:
+            The names of tables that could not be created or verified. An empty
+            list means every plugin table is present.
+
+        Raises:
+            Exception: The last error raised while creating or verifying the
+                tables, when every attempt failed.
+        """
+        table_names = (
+            GateGroup.__tablename__,
+            GateCode.__tablename__,
+            GateBot.__tablename__,
+        )
+        last_exc: Exception | None = None
+        missing: list[str] = list(table_names)
+        for _ in range(max(1, retries)):
+            try:
+                async with self.db.engine.begin() as conn:
+                    await conn.run_sync(SQLModel.metadata.create_all)
+                async with self.db.engine.connect() as conn:
+                    existing = await conn.run_sync(
+                        lambda sync_conn: set(inspect(sync_conn).get_table_names())
+                    )
+                missing = [name for name in table_names if name not in existing]
+                last_exc = None
+            except Exception as exc:
+                last_exc = exc
+                missing = list(table_names)
+                continue
+            if not missing:
+                break
+        if last_exc is not None:
+            raise last_exc
+        return missing
 
     # ------------------------------------------------------------------
     # Groups
@@ -280,3 +332,60 @@ class GateStore:
             session.add(row)
             await session.commit()
             return True
+
+    # ------------------------------------------------------------------
+    # Bots exempt from the gate
+    # ------------------------------------------------------------------
+    async def is_bot_open(self, bot: str) -> bool:
+        """Return whether a bot is exempt from the group gate.
+
+        Args:
+            bot: Platform adapter id (the first segment of a UMO).
+
+        Returns:
+            True when the bot is fully open and every group is allowed.
+        """
+        if not bot:
+            return False
+        async with self.db.get_db() as session:
+            row = await session.get(GateBot, bot)
+            return bool(row and row.open_all)
+
+    async def set_bot_open(self, bot: str, open_all: bool) -> GateBot:
+        """Enable or disable the full-open exemption of a bot.
+
+        Args:
+            bot: Platform adapter id (the first segment of a UMO).
+            open_all: Whether every group of this bot bypasses the gate.
+
+        Returns:
+            The persisted row.
+        """
+        async with self.db.get_db() as session:
+            row = await session.get(GateBot, bot)
+            if row is None:
+                row = GateBot(bot=bot)
+            row.open_all = bool(open_all)
+            row.updated_at = now_ts()
+            session.add(row)
+            await session.commit()
+            await session.refresh(row)
+            return row
+
+    async def open_bots(self) -> set[str]:
+        """Return the set of bots that are fully open.
+
+        Returns:
+            Platform adapter ids whose groups bypass the gate.
+        """
+        async with self.db.get_db() as session:
+            rows = (
+                (
+                    await session.execute(
+                        select(GateBot).where(col(GateBot.open_all) == True)  # noqa: E712
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        return {row.bot for row in rows}

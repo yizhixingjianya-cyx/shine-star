@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 """如需修改配置，请在 `data/cmd_config.json` 中修改或者在管理面板中可视化修改。"""
 
 import os
@@ -342,6 +344,8 @@ CONFIG_METADATA_2 = {
                         "secret": "",
                         "enable_group_c2c": True,
                         "enable_guild_direct_message": True,
+                        "shard_count": 0,
+                        "shard_ids": "",
                     },
                     "QQ 官方机器人(Webhook)": {
                         "id": "default",
@@ -938,6 +942,16 @@ CONFIG_METADATA_2 = {
                         "description": "启用频道私聊",
                         "type": "bool",
                         "hint": "启用后，机器人可以接收到频道的私聊消息。",
+                    },
+                    "shard_count": {
+                        "description": "分片总数",
+                        "type": "int",
+                        "hint": "QQ 官方机器人的分片数量。0 表示按 QQ 官方建议自动分片；手动填写后本实例按该数量建立分片连接（多机部署时各机填写相同的值）。",
+                    },
+                    "shard_ids": {
+                        "description": "本实例分片编号",
+                        "type": "string",
+                        "hint": "本实例负责的分片编号，逗号分隔，如 0 或 0,1；留空表示负责全部分片。多机负载均衡时各机填写不同的分片编号。",
                     },
                     "ws_reverse_host": {
                         "description": "反向 Websocket 主机",

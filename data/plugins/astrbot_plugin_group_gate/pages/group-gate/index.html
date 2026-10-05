@@ -78,11 +78,24 @@
         font-family: ui-monospace, Consolas, monospace; font-size: 15px;
         letter-spacing: 1px; font-weight: 600;
       }
+      .botgroup { margin-bottom: 14px; }
+      .bothead {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; cursor: pointer;
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: 10px; font-weight: 600;
+      }
+      .boticonswitch { display: inline-block; transition: transform 0.15s; color: var(--muted); }
+      .botname { font-size: 14px; }
+      .botcount { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+      .botbody { margin-top: 10px; }
+      .botgroup.collapsed .botbody { display: none; }
+      .botgroup.collapsed .boticonswitch { transform: rotate(-90deg); }
     </style>
   </head>
   <body>
     <div class="tabs">
-      <button class="tab active" data-tab="groups">群聊白名单</button>
+      <button class="tab active" data-tab="groups">准入总览</button>
       <button class="tab" data-tab="codes">注册码</button>
       <button class="tab" data-tab="settings">设置</button>
     </div>
@@ -211,11 +224,34 @@
         });
       });
 
+      let botCatalog = {};
+
+      function groupCard(item) {
+        return `
+          <div class="card">
+            <div class="row">
+              <input type="checkbox" class="gpick" value="${escapeHtml(item.umo)}" />
+              <span class="badge ${item.allowed ? "ok" : "no"}">${
+                item.allowed ? "已授权" : "未授权"
+              }</span>
+              <span style="font-weight:600">${escapeHtml(item.display_name || item.umo)}</span>
+              <span class="umo" style="color: var(--muted)">${escapeHtml(item.umo)}</span>
+              <span class="badge">消息 ${item.messages || 0}</span>
+              ${item.note ? `<span class="badge">${escapeHtml(item.note)}</span>` : ""}
+              <button class="mini" data-act="allow" data-umo="${escapeHtml(item.umo)}">加白</button>
+              <button class="mini danger" data-act="deny" data-umo="${escapeHtml(item.umo)}">移出</button>
+            </div>
+          </div>`;
+      }
+
       async function loadGroups() {
         const list = el("group-list");
         try {
           const data = await bridge.apiGet("/groups", {});
           const items = (data && data.items) || [];
+          for (const bot of (data && data.bots) || []) {
+            if (bot && bot.id) botCatalog[bot.id] = bot;
+          }
           el("group-stats").textContent = `共 ${items.length} 个群，已授权 ${
             items.filter((i) => i.allowed).length
           } 个`;
@@ -223,24 +259,40 @@
             list.innerHTML = '<div class="empty">暂无已知群聊</div>';
             return;
           }
-          list.innerHTML = items
-            .map(
-              (item) => `
-              <div class="card">
-                <div class="row">
-                  <input type="checkbox" class="gpick" value="${escapeHtml(item.umo)}" />
-                  <span class="badge ${item.allowed ? "ok" : "no"}">${
-                    item.allowed ? "已授权" : "未授权"
-                  }</span>
-                  <span class="umo">${escapeHtml(item.umo)}</span>
-                  <span class="badge">消息 ${item.messages || 0}</span>
-                  ${item.note ? `<span class="badge">${escapeHtml(item.note)}</span>` : ""}
-                  <button class="mini" data-act="allow" data-umo="${escapeHtml(item.umo)}">加白</button>
-                  <button class="mini danger" data-act="deny" data-umo="${escapeHtml(item.umo)}">移出</button>
+          const groups = new Map();
+          for (const item of items) {
+            const key = item.bot || (item.umo || "").split(":")[0] || "(未知 bot)";
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(item);
+          }
+          let html = "";
+          for (const [bot, groupItems] of groups) {
+            const meta = botCatalog[bot] || {};
+            const type = meta.type
+              ? `<span class="badge">${escapeHtml(meta.type)}</span>`
+              : "";
+            const openAll = !!meta.open_all;
+            const openBadge = openAll
+              ? '<span class="badge ok">已全部放开</span>'
+              : "";
+            const toggle = openAll
+              ? `<button class="mini" data-act="close-all" data-bot="${escapeHtml(bot)}">取消放开</button>`
+              : `<button class="mini primary" data-act="open-all" data-bot="${escapeHtml(bot)}">完全放开</button>`;
+            const allowed = groupItems.filter((i) => i.allowed).length;
+            html += `
+              <div class="botgroup collapsed">
+                <div class="bothead">
+                  <span class="boticonswitch">▾</span>
+                  <span class="botname">${escapeHtml(bot)}</span>
+                  ${type}
+                  ${openBadge}
+                  <span class="botcount">${groupItems.length} 个群 · 已授权 ${allowed}</span>
+                  ${toggle}
                 </div>
-              </div>`,
-            )
-            .join("");
+                <div class="botbody">${groupItems.map(groupCard).join("")}</div>
+              </div>`;
+          }
+          list.innerHTML = html;
         } catch (error) {
           list.innerHTML = `<div class="empty">加载失败：${escapeHtml(error.message)}</div>`;
         }
@@ -322,12 +374,19 @@
       el("group-list").addEventListener("click", async (event) => {
         const button = event.target.closest("button[data-act]");
         if (!button) return;
-        const allowed = button.getAttribute("data-act") === "allow";
+        const act = button.getAttribute("data-act");
         try {
-          await bridge.apiPost("/whitelist", {
-            umo: button.getAttribute("data-umo"),
-            allowed,
-          });
+          if (act === "open-all" || act === "close-all") {
+            await bridge.apiPost("/open-all", {
+              bot: button.getAttribute("data-bot"),
+              open: act === "open-all",
+            });
+          } else {
+            await bridge.apiPost("/whitelist", {
+              umo: button.getAttribute("data-umo"),
+              allowed: act === "allow",
+            });
+          }
           await loadGroups();
         } catch (error) {
           setMsg("group-msg", "失败：" + error.message, false);
@@ -405,6 +464,13 @@
       el("bulk-deny").addEventListener("click", () => bulk(false));
       el("groups-refresh").addEventListener("click", () => loadGroups());
       el("codes-refresh").addEventListener("click", () => loadCodes());
+
+      document.addEventListener("click", (event) => {
+        if (event.target.closest("button")) return;
+        const head = event.target.closest(".bothead");
+        if (!head) return;
+        head.parentElement.classList.toggle("collapsed");
+      });
 
       (async () => {
         el("group-stats").textContent = "等待插件桥接…";

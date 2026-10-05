@@ -1,7 +1,7 @@
 {
   "enable": {
     "description": "启用插件",
-    "hint": "关闭后不再执行定时压缩、紧急压缩与面板 API。",
+    "hint": "关闭后不再执行对话结束压缩、紧急压缩与面板 API。",
     "type": "bool",
     "default": true
   },
@@ -141,11 +141,6 @@
     "hint": "紧急压缩时，若距离低谷时段开始不足该分钟数，则等待低谷再压缩（仅做无损上限保护）。",
     "type": "int",
     "default": 30
-  },
-  "incremental_cron": {
-    "description": "增量压缩 cron 表达式",
-    "type": "string",
-    "default": "0 */2 * * *"
   },
   "global_cron": {
     "description": "每日全局压缩 cron 表达式",

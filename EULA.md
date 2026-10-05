@@ -83,7 +83,7 @@ AstrBot 可能会收集有限的匿名统计信息，用于了解系统使用情
 
 所收集的统计信息仅包括与系统运行和功能使用相关的基础技术指标，例如功能使用频率、错误信息等。
 
-AstrBot **不会收集、上传或存储您的对话内容、消息正文、输入文本，或任何能够识别您个人身份的敏感信息**。
+AstrBot **不会收集、上传或存储您的对话内容、消息正文或输入文本**。所收集的匿名统计信息可能包含随机生成的匿名安装标识与主机名，仅用于去重和问题诊断，不会与您的真实身份关联。
 
 您可以手动关闭此项功能，通过在系统环境变量中设置 `ASTRBOT_DISABLE_METRICS=1` 来禁用匿名统计信息收集。
 
@@ -206,7 +206,7 @@ AstrBot may collect a limited amount of anonymous usage statistics to understand
 
 Collected metrics are limited to basic technical indicators related to system operation and feature usage, such as feature usage frequency and error information.
 
-AstrBot **does not collect, upload, or store your conversation content, message bodies, input text, or any personally identifiable or sensitive information**.
+AstrBot **does not collect, upload, or store your conversation content, message bodies, or input text**. The anonymous metrics may include a randomly generated anonymous installation identifier and the host name, used solely for deduplication and diagnostics, and are not linked to your real identity.
 
 You may manually disable this feature by setting the environment variable `ASTRBOT_DISABLE_METRICS=1` to turn off anonymous metrics collection.
 

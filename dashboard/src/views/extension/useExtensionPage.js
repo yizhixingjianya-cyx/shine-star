@@ -1,3 +1,5 @@
+// [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+// Upstream: https://github.com/AstrBotDevs/AstrBot
 import { commandApi, pluginApi } from "@/api/v1";
 import { pluginSidebarState } from "@/composables/usePluginSidebarItems";
 import { useI18n, useModuleI18n } from "@/i18n/composables";

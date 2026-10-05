@@ -117,6 +117,19 @@
         display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
       }
       .session-row .umo { flex: 1 1 320px; word-break: break-all; }
+      .botgroup { margin-bottom: 14px; }
+      .bothead {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; cursor: pointer;
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: 12px; font-weight: 600;
+      }
+      .boticonswitch { display: inline-block; transition: transform 0.15s; color: var(--muted); }
+      .botname { font-size: 14px; }
+      .botcount { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+      .botbody { margin-top: 10px; display: flex; flex-direction: column; gap: 12px; }
+      .botgroup.collapsed .botbody { display: none; }
+      .botgroup.collapsed .boticonswitch { transform: rotate(-90deg); }
     </style>
   </head>
   <body>
@@ -277,6 +290,7 @@
         total: 0,
         providers: { chat: [], embedding: [], rerank: [] },
         config: {},
+        botCatalog: {},
       };
 
       const el = (id) => document.getElementById(id);
@@ -314,30 +328,62 @@
         return date.toLocaleString();
       }
 
-      function render(items) {
-        const list = el("list");
+      function renderGrouped(container, items, cardFn, countFn, emptyText) {
         if (!items.length) {
-          list.innerHTML = '<div class="empty">暂无记忆记录</div>';
+          container.innerHTML = `<div class="empty">${escapeHtml(emptyText)}</div>`;
           return;
         }
-        list.innerHTML = items
-          .map((item) => {
-            const isLong = item.tier === 2;
-            return `
-              <div class="card">
-                <div class="card-head">
-                  <span class="badge ${isLong ? "long" : ""}">${isLong ? "长期记忆" : "每日记忆"}</span>
-                  <span>${escapeHtml(item.period_key || "-")}</span>
-                  <span class="umo">${escapeHtml(item.umo)}</span>
-                  <span>${item.msg_count || 0} 条原文</span>
-                  <span>${item.summary_tokens || 0} tokens</span>
-                  <span>更新于 ${fmtTime(item.updated_at)}</span>
-                  <span>到期 ${fmtTime(item.expires_at)}</span>
-                </div>
-                <div class="summary">${escapeHtml(item.summary)}</div>
-              </div>`;
-          })
-          .join("");
+        const groups = new Map();
+        for (const item of items) {
+          const key = item.bot || (item.umo || "").split(":")[0] || "(未知 bot)";
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(item);
+        }
+        let html = "";
+        for (const [bot, list] of groups) {
+          const meta = state.botCatalog[bot] || {};
+          const type = meta.type
+            ? `<span class="badge">${escapeHtml(meta.type)}</span>`
+            : "";
+          html += `
+            <div class="botgroup collapsed">
+              <div class="bothead">
+                <span class="boticonswitch">▾</span>
+                <span class="botname">${escapeHtml(bot)}</span>
+                ${type}
+                <span class="botcount">${escapeHtml(countFn(list))}</span>
+              </div>
+              <div class="botbody">${list.map(cardFn).join("")}</div>
+            </div>`;
+        }
+        container.innerHTML = html;
+      }
+
+      function memoryCard(item) {
+        const isLong = item.tier === 2;
+        return `
+          <div class="card">
+            <div class="card-head">
+              <span class="badge ${isLong ? "long" : ""}">${isLong ? "长期记忆" : "每日记忆"}</span>
+              <span>${escapeHtml(item.period_key || "-")}</span>
+              <span class="umo">${escapeHtml(item.umo)}</span>
+              <span>${item.msg_count || 0} 条原文</span>
+              <span>${item.summary_tokens || 0} tokens</span>
+              <span>更新于 ${fmtTime(item.updated_at)}</span>
+              <span>到期 ${fmtTime(item.expires_at)}</span>
+            </div>
+            <div class="summary">${escapeHtml(item.summary)}</div>
+          </div>`;
+      }
+
+      function render(items) {
+        renderGrouped(
+          el("list"),
+          items,
+          memoryCard,
+          (list) => `${list.length} 条`,
+          "暂无记忆记录",
+        );
       }
 
       async function load() {
@@ -464,41 +510,52 @@
         el("db-c3").textContent = `${counts.total ?? 0} 条（合计）`;
       }
 
+      function sessionCard(item) {
+        const when = item.last_compress_at
+          ? `上次压缩 ${fmtTime(item.last_compress_at)}`
+          : "尚未压缩";
+        const err = item.last_error
+          ? `<span class="badge" style="background:#5a2b2b">${escapeHtml(String(item.last_error)).slice(0, 40)}</span>`
+          : "";
+        return `
+          <div class="card">
+            <div class="session-row">
+              <span class="umo">${escapeHtml(item.umo)}</span>
+              <span class="badge">消息 ${item.messages || 0}</span>
+              <span class="badge">每日 ${item.daily || 0}</span>
+              <span class="badge long">长期 ${item.long_term || 0}</span>
+              <span style="color: var(--muted); font-size: 12px">${when}</span>
+              ${err}
+              <button class="mini" data-action="del-daily" data-umo="${escapeHtml(item.umo)}">删每日</button>
+              <button class="mini" data-action="del-long" data-umo="${escapeHtml(item.umo)}">删长期</button>
+              <button class="mini danger" data-action="del-all" data-umo="${escapeHtml(item.umo)}">全部删除</button>
+            </div>
+          </div>`;
+      }
+
       function renderSessions(items) {
-        const list = el("sessions-list");
-        if (!items.length) {
-          list.innerHTML = '<div class="empty">暂无会话</div>';
-          return;
-        }
-        list.innerHTML = items
-          .map((item) => {
-            const when = item.last_compress_at
-              ? `上次压缩 ${fmtTime(item.last_compress_at)}`
-              : "尚未压缩";
-            const err = item.last_error
-              ? `<span class="badge" style="background:#5a2b2b">${escapeHtml(String(item.last_error)).slice(0, 40)}</span>`
-              : "";
-            return `
-              <div class="card">
-                <div class="session-row">
-                  <span class="umo">${escapeHtml(item.umo)}</span>
-                  <span class="badge">消息 ${item.messages || 0}</span>
-                  <span class="badge">每日 ${item.daily || 0}</span>
-                  <span class="badge long">长期 ${item.long_term || 0}</span>
-                  <span style="color: var(--muted); font-size: 12px">${when}</span>
-                  ${err}
-                  <button class="mini" data-action="del-daily" data-umo="${escapeHtml(item.umo)}">删每日</button>
-                  <button class="mini" data-action="del-long" data-umo="${escapeHtml(item.umo)}">删长期</button>
-                  <button class="mini danger" data-action="del-all" data-umo="${escapeHtml(item.umo)}">全部删除</button>
-                </div>
-              </div>`;
-          })
-          .join("");
+        renderGrouped(
+          el("sessions-list"),
+          items,
+          sessionCard,
+          (list) => {
+            const daily = list.reduce((sum, item) => sum + (item.daily || 0), 0);
+            const longTerm = list.reduce(
+              (sum, item) => sum + (item.long_term || 0),
+              0,
+            );
+            return `${list.length} 个会话 · 每日 ${daily} · 长期 ${longTerm}`;
+          },
+          "暂无会话",
+        );
       }
 
       async function loadSessions() {
         try {
           const data = await bridge.apiGet("/sessions", {});
+          for (const bot of (data && data.bots) || []) {
+            if (bot && bot.id) state.botCatalog[bot.id] = bot;
+          }
           renderSessions((data && data.items) || []);
         } catch (error) {
           el("sessions-list").innerHTML = `<div class="empty">加载失败：${escapeHtml(error.message)}</div>`;
@@ -563,6 +620,12 @@
         });
       });
 
+      document.addEventListener("click", (event) => {
+        const head = event.target.closest(".bothead");
+        if (!head) return;
+        head.parentElement.classList.toggle("collapsed");
+      });
+
       el("save-config").addEventListener("click", async () => {
         setMsg("settings-msg", "保存中…");
         try {
@@ -610,6 +673,7 @@
         try {
           await waitForBridge();
           await refresh();
+          await loadSessions();
           try {
             await loadProviders();
             await loadConfig();

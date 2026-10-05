@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 [project]
 name = "AstrBot"
 version = "4.28.0-beta.1"
@@ -90,9 +92,10 @@ astrbot = "astrbot.cli.__main__:cli"
 
 [project.urls]
 Repository = "https://github.com/AstrBotDevs/AstrBot"
+Source = "https://github.com/fishpond-studio/shine-stars"
 
 [tool.ruff]
-exclude = ["astrbot/core/utils/t2i/local_strategy.py", "astrbot/api/all.py", "tests"]
+exclude = ["astrbot/core/utils/t2i/local_strategy.py", "astrbot/api/all.py", "tests", "data"]
 line-length = 88
 target-version = "py310"
 

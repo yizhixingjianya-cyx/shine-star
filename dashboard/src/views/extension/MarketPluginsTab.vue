@@ -1,3 +1,4 @@
+<!-- [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05. Upstream: https://github.com/AstrBotDevs/AstrBot -->
 <script setup>
 import MarketPluginCard from "@/components/extension/MarketPluginCard.vue";
 import PluginSortControl from "@/components/extension/PluginSortControl.vue";

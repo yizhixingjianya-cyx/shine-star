@@ -126,7 +126,9 @@ def build_tools(service: FtvService) -> list[FunctionTool]:
         """构造调用 FtvAPI 方法并渲染文本的处理函数。"""
 
         async def _h(kwargs: dict) -> str:
-            params = params_fn(kwargs) if params_fn else None
+            # 未提供 params_fn 时，直接把工具入参透传给 API 方法
+            # （工具 schema 的参数名与 API 方法参数名一致）
+            params = params_fn(kwargs) if params_fn else dict(kwargs)
             method = getattr(api, method_name)
             data = await (method(**params) if params else method())
             return _render(data)

@@ -68,8 +68,13 @@ class GroupGatePlugin(Star):
     async def initialize(self) -> None:
         """Create the plugin tables and register the Web APIs."""
         try:
-            await self.store.ensure_tables()
-            self.logger.info("group gate tables are ready.")
+            missing = await self.store.ensure_tables()
+            if missing:
+                self.logger.error(
+                    f"group gate tables missing after init: {', '.join(missing)}"
+                )
+            else:
+                self.logger.info("group gate tables are ready.")
         except Exception as exc:
             self.logger.error(f"failed to ensure group gate tables: {exc}")
         self._register_web_apis()
@@ -92,6 +97,12 @@ class GroupGatePlugin(Star):
         umo = event.unified_msg_origin
         if not umo:
             return
+        bot = umo.split(":", 1)[0]
+        try:
+            if await self.store.is_bot_open(bot):
+                return
+        except Exception as exc:
+            self.logger.error(f"group gate bot lookup failed: {exc}")
         try:
             state = await self.store.is_allowed(umo)
         except Exception as exc:
@@ -99,6 +110,13 @@ class GroupGatePlugin(Star):
             return
         if state is True:
             return
+        if state is None:
+            # Remember unknown groups so the panel can list them with their
+            # name for one-click whitelisting.
+            try:
+                await self.store.set_allowed(umo, False, source="pending")
+            except Exception as exc:
+                self.logger.warning(f"record pending group failed: {exc}")
 
         code = self._extract_code(event.message_str or "")
         if code:
@@ -168,6 +186,12 @@ class GroupGatePlugin(Star):
                 ["POST"],
                 "Bulk set group whitelist",
             ),
+            (
+                "/open-all",
+                self._api_open_all,
+                ["POST"],
+                "Open or gate a whole bot",
+            ),
             ("/codes", self._api_list_codes, ["GET"], "List registration codes"),
             ("/codes/create", self._api_create_codes, ["POST"], "Create codes"),
             ("/codes/delete", self._api_delete_code, ["POST"], "Delete a code"),
@@ -223,12 +247,41 @@ class GroupGatePlugin(Star):
     async def _api_groups(self) -> dict:
         """Return every known group together with its whitelist state."""
         rows = {row.umo: row for row in await self.store.list_groups()}
+        known = await self._known_groups()
+        platform_types: dict[str, str] = {}
+        try:
+            core_config = self.context.get_config()
+            platforms = core_config.get("platform", []) if core_config else []
+        except Exception as exc:
+            self.logger.warning(f"read platform config failed: {exc}")
+            platforms = []
+        for platform in platforms or []:
+            pid = str(platform.get("id") or "").strip()
+            if pid:
+                platform_types[pid] = str(platform.get("type") or "")
+        names: dict[str, str] = {}
+        umos = {group["umo"] for group in known} | set(rows)
+        if umos:
+            try:
+                aliases = await self.context.get_db().get_umo_aliases(list(umos))
+            except Exception as exc:
+                self.logger.warning(f"resolve group names failed: {exc}")
+            else:
+                for alias in aliases:
+                    name = (
+                        str(alias.user_alias or "").strip()
+                        or str(alias.auto_name or "").strip()
+                    )
+                    if name:
+                        names[alias.umo] = name
         items = []
-        for group in await self._known_groups():
+        for group in known:
             row = rows.get(group["umo"])
             items.append(
                 {
                     **group,
+                    "bot": str(group["umo"]).split(":", 1)[0],
+                    "display_name": names.get(group["umo"], group["umo"]),
                     "allowed": bool(row.allowed) if row else False,
                     "known": True,
                     "note": row.note if row else "",
@@ -241,6 +294,8 @@ class GroupGatePlugin(Star):
             items.append(
                 {
                     "umo": umo,
+                    "bot": str(umo).split(":", 1)[0],
+                    "display_name": names.get(umo, umo),
                     "platform_id": "",
                     "messages": 0,
                     "allowed": bool(row.allowed),
@@ -249,7 +304,25 @@ class GroupGatePlugin(Star):
                     "source": row.source,
                 }
             )
-        return {"items": items, "enabled": self.enabled()}
+        bot_ids = sorted(
+            {str(item.get("bot") or "") for item in items if item.get("bot")}
+            | set(platform_types)
+        )
+        try:
+            open_bots = await self.store.open_bots()
+        except Exception as exc:
+            self.logger.warning(f"list open bots failed: {exc}")
+            open_bots = set()
+        bots = [
+            {
+                "id": pid,
+                "label": pid,
+                "type": platform_types.get(pid, ""),
+                "open_all": pid in open_bots,
+            }
+            for pid in bot_ids
+        ]
+        return {"items": items, "bots": bots, "enabled": self.enabled()}
 
     async def _api_whitelist(self) -> dict:
         """Allow or deny a single group."""
@@ -278,6 +351,23 @@ class GroupGatePlugin(Star):
             await self.store.set_allowed(umo, allowed, note=note, source="manual")
             updated += 1
         return {"updated": updated, "allowed": allowed}
+
+    async def _api_open_all(self) -> dict:
+        """Fully open or re-gate a whole bot.
+
+        A fully open bot bypasses the gate entirely: every group of that bot,
+        including groups seen later, is allowed without a whitelist entry.
+        """
+        body = await request.json(default={}) or {}
+        bot = str(body.get("bot") or "").strip()
+        if not bot:
+            return {"error": "bot is required"}
+        open_all = bool(body.get("open", True))
+        await self.store.set_bot_open(bot, open_all)
+        self.logger.info(
+            f"group gate {'opened' if open_all else 'closed'} for bot: {bot}"
+        )
+        return {"bot": bot, "open_all": open_all}
 
     async def _api_seed_current(self) -> dict:
         """Whitelist every group the bot already knows about."""

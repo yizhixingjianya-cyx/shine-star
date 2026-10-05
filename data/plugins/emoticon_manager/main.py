@@ -52,7 +52,7 @@ from pathlib import Path
 
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.message_components import Image, Plain
+from astrbot.api.message_components import Image
 from astrbot.api.star import Context, Star
 from astrbot.api.web import (
     error_response,
@@ -60,8 +60,6 @@ from astrbot.api.web import (
     json_response,
     request,
 )
-
-from . import static_host
 
 # =====================================================================
 # 常量区
@@ -95,9 +93,6 @@ PREVIEW_MAX_BYTES = 1 * 1024 * 1024
 
 # 聊天指令分页：每页展示的表情数量
 PAGE_SIZE = 20
-
-# markdown 表情图前补的一段颜文字（可按喜好修改）
-MD_PREFIX_TEXT = "(・∀・)"
 
 # 文件名主干（不含扩展名）最大长度
 MAX_STEM_LENGTH = 60
@@ -423,30 +418,6 @@ class EmoticonManagerPlugin(Star):
         # 见 _collect_emotion_tags()
         # 情感标签匹配失败时是否回退随机发送（false 则不发）
         self.emotion_fallback_random = bool(cfg.get("emotion_fallback_random", True))
-
-        # ---- markdown 图片发送（本地图床 + 同一条消息）----
-        # 总开关：开启后用 markdown 图片语法发送表情（需平台支持 markdown，如 QQ 官方）
-        self.md_send_enabled = bool(cfg.get("md_send_enabled", True))
-        # 是否把表情拼接到触发它的那条回复消息里（false 则仍单独发一条）
-        self.md_attach_to_reply = bool(cfg.get("md_attach_to_reply", True))
-        # 本地图床对外地址（如 http://1.2.3.4:11453）；留空则退回普通图片消息
-        self.md_image_host_url = str(cfg.get("md_image_host_url") or "").strip()
-        self.md_image_host_port = self._clamp_int(
-            cfg.get("md_image_host_port"), 11453, 1, 65535
-        )
-        self.md_image_host_bind = (
-            str(cfg.get("md_image_host_bind") or "0.0.0.0").strip() or "0.0.0.0"
-        )
-        # 显示尺寸上限（只缩小不放大）与最终缩放系数
-        self.md_max_width = self._clamp_int(cfg.get("md_max_width"), 240, 16, 4096)
-        self.md_max_height = self._clamp_int(cfg.get("md_max_height"), 240, 16, 4096)
-        try:
-            self.md_scale = float(cfg.get("md_scale") or 1.0)
-        except (TypeError, ValueError):
-            self.md_scale = 1.0
-        if self.md_scale <= 0:
-            self.md_scale = 1.0
-
         # 策略运行状态
         self._rr_index = 0  # 轮询游标（round_robin 使用）
         self._last_random_file = None  # 上次随机发送的文件名（避免连续重复）
@@ -471,26 +442,6 @@ class EmoticonManagerPlugin(Star):
             EMOTICONS_DIR.mkdir(parents=True, exist_ok=True)
         except OSError as e:
             logger.error(f"[{PLUGIN_NAME}] 创建表情目录失败，请检查插件目录权限: {e}")
-
-        # 初始化表情图床：markdown 图片必须走公网 URL，这里把表情目录对外提供
-        if self.md_send_enabled:
-            try:
-                static_host.configure(
-                    base_url=self.md_image_host_url,
-                    bind=self.md_image_host_bind,
-                    port=self.md_image_host_port,
-                    root=EMOTICONS_DIR,
-                )
-                static_host.start()
-            except Exception as e:
-                logger.error(f"[{PLUGIN_NAME}] 表情图床初始化失败: {e}")
-        else:
-            logger.info(
-                f"[{PLUGIN_NAME}] 未启用 markdown 图床"
-                f"（md_send_enabled={self.md_send_enabled}, "
-                f"md_image_host_url={'已填' if self.md_image_host_url else '空'}），"
-                "表情将回落为普通图片消息"
-            )
 
         # 注册 WebUI 管理接口（Plugin Pages 规范）
         self._register_web_apis()
@@ -987,120 +938,6 @@ class EmoticonManagerPlugin(Star):
         items.sort(key=lambda x: (-x["count"], x["tag"]))
         return json_response({"tags": items, "total": len(items)})
 
-    # ---------------- markdown 图片发送：辅助方法 ----------------
-    def _md_available(self) -> bool:
-        """当前是否具备 markdown 图片发送条件（开关 + 图床就绪）。"""
-        return bool(self.md_send_enabled and static_host.is_enabled())
-
-    def _build_markdown_for(self, picked: list, with_prefix: bool = True) -> str:
-        """把选中的表情拼成 markdown 图片语法；失败返回空串。
-
-        每条形如 ``![名字 #宽px #高px](http://.../emoticons/xxx.png)``，
-        宽高由「显示上限 × 缩放系数」算出（只改显示尺寸，不动原文件）。
-
-        Args:
-            picked: 选中的表情文件信息列表。
-            with_prefix: 是否在图片前加一段颜文字；单独补发时为 True，
-                拼进已有回复时为 False。
-        """
-        blocks = []
-        for f in picked:
-            name = str(f.get("filename") or "")
-            url = static_host.url_for(name)
-            if not url:
-                continue
-            w, h = static_host.image_size(EMOTICONS_DIR / name)
-            dw, dh = static_host.md_display_size(
-                w, h, self.md_max_width, self.md_max_height, self.md_scale
-            )
-            if dw <= 0 or dh <= 0:
-                # 尺寸解析失败时给个兜底方框，避免 QQ 只显示 [名字] 方块
-                dw, dh = self.md_max_width, self.md_max_height
-            alt = Path(name).stem or "表情"
-            blocks.append(static_host.image_markdown(url, alt, dw, dh))
-        if not blocks:
-            return ""
-        body = "\n".join(blocks)
-        if not with_prefix:
-            return body
-        return f"{MD_PREFIX_TEXT}\n{body}"
-
-    async def _should_auto_send(self, event) -> bool:
-        """自动发送的概率 + 冷却判定；命中则记录本次发送时间。"""
-        if not self.auto_send_enabled or self.emoticon_probability <= 0:
-            return False
-        umo = str(getattr(event, "unified_msg_origin", "") or "default")
-        now = time.monotonic()
-        if now < self._suppress_until_at.get(umo, 0.0):
-            return False
-        if random.random() * 100 >= self.emoticon_probability:
-            return False
-        if now - self._last_auto_sent_at.get(umo, 0.0) < self.min_interval_seconds:
-            return False
-        self._last_auto_sent_at[umo] = now
-        if len(self._last_auto_sent_at) > 2000:
-            self._last_auto_sent_at.clear()
-            self._suppress_until_at.clear()
-        return True
-
-    # ---------------- 发送前：把表情拼进同一条回复消息 ----------------
-    @filter.on_agent_done()
-    async def _mark_turn_done(self, event: AstrMessageEvent, run_context, response):
-        """Agent 运行完成时打标记，供发送后钩子判断“整次回复已结束”。"""
-        event.set_extra("_emoticon_turn_done", True)
-
-    @filter.on_decorating_result()
-    async def attach_emoticon_to_reply(self, event: AstrMessageEvent):
-        """发送前钩子：把随机表情以 markdown 图片拼接到本条回复后面（同一气泡）。
-
-        仅在「markdown 总开关 + 附着开关 + 图床就绪」时生效；命中后打标记，
-        让 after_message_sent 不再单独补发一条，避免重复。
-        """
-        if not event.get_extra("_emoticon_turn_done"):
-            return
-        if not (self._md_available() and self.md_attach_to_reply):
-            return
-        if self._auto_sending:
-            return
-        if event.get_extra("_emoticon_md_attached") or event.get_extra(
-            "_emoticon_manual"
-        ):
-            return
-
-        result = event.get_result()
-        if result is None or not getattr(result, "chain", None):
-            return
-        if not await self._should_auto_send(event):
-            return
-
-        files = await asyncio.to_thread(self._list_emoticons)
-        if not files:
-            return
-        picked = await self._pick_emoticons(event, files, self.max_emoticons_per_reply)
-        if not picked:
-            return
-        md = self._build_markdown_for(picked, with_prefix=False)
-        if not md:
-            return
-
-        merged = False
-        for comp in reversed(result.chain):
-            if isinstance(comp, Plain):
-                comp.text = f"{comp.text}\n\n{md}"
-                merged = True
-                break
-        if not merged:
-            result.chain.append(Plain(f"\n\n{md}"))
-        try:
-            result.use_markdown(True)
-        except Exception:
-            pass
-        event.set_extra("_emoticon_md_attached", True)
-        logger.info(
-            f"[{PLUGIN_NAME}] 已在回复中附带 markdown 表情: "
-            f"{[f['filename'] for f in picked]}"
-        )
-
     # ---------------- 自动发送：机器人回复后随机补发表情 ----------------
     @filter.after_message_sent()
     async def auto_send_emoticon(self, event: AstrMessageEvent):
@@ -1108,35 +945,39 @@ class EmoticonManagerPlugin(Star):
 
         说明：
         - 事件钩子（after_message_sent）不能用 yield 发消息，必须用 event.send()。
-        - 若表情已在发送前拼进同一条回复（attach_emoticon_to_reply），
-          本方法会跳过，避免重复发送。
         - 触发条件：自动发送开关开启、表情库非空、概率命中、且同一会话
           距离上次自动发送超过最小间隔（防止一条对话连续刷出多张表情）。
         - 递归防护：自动发送的表情本身也会触发本钩子，通过
           _auto_sending 标志 + 硬抑制窗口 + 会话冷却三层防止死循环。
         """
-        # 只有整次回复结束时才补发（中途的工具前提示等不触发）
-        if not event.get_extra("_emoticon_turn_done"):
-            return
-        # 已拼进同一条回复 → 不重复补发
-        if event.get_extra("_emoticon_md_attached"):
-            return
-        # 手动指令（#表情包）本次已发送表情 → 不再自动补发
-        if event.get_extra("_emoticon_manual"):
-            return
         if self._auto_sending:
             return
-        if not self.auto_send_enabled or self.emoticon_probability <= 0:
+        if not self.auto_send_enabled:
+            return
+        if self.emoticon_probability <= 0:
             return
 
         files = await asyncio.to_thread(self._list_emoticons)
         if not files:
             return
 
+        # 同一会话冷却（按 unified_msg_origin 区分会话）
         umo = str(getattr(event, "unified_msg_origin", "") or "default")
-        if not await self._should_auto_send(event):
+        now = time.monotonic()
+        # 硬抑制窗口：刚向该会话发过自动表情时，忽略紧随其后的钩子触发（防递归）
+        if now < self._suppress_until_at.get(umo, 0.0):
             return
+        # 概率判定（0-100，百分比）
+        if random.random() * 100 >= self.emoticon_probability:
+            return
+        if now - self._last_auto_sent_at.get(umo, 0.0) < self.min_interval_seconds:
+            return
+        self._last_auto_sent_at[umo] = now
+        if len(self._last_auto_sent_at) > 2000:
+            self._last_auto_sent_at.clear()
+            self._suppress_until_at.clear()
 
+        # 按选择策略挑选表情（数量不超过“每次回复最多使用表情数量”）
         picked = await self._pick_emoticons(event, files, self.max_emoticons_per_reply)
         if not picked:
             return
@@ -1145,19 +986,6 @@ class EmoticonManagerPlugin(Star):
         try:
             self._auto_sending = True
             self._suppress_until_at[umo] = time.monotonic() + 2.0
-            # markdown 可用时优先走 markdown（图 + 文一条消息）
-            if self._md_available():
-                md = self._build_markdown_for(picked)
-                if md:
-                    res = event.make_result()
-                    res.message(md)
-                    res.use_markdown(True)
-                    await event.send(res)
-                    logger.info(
-                        f"[{PLUGIN_NAME}] 自动发送 markdown 表情: "
-                        f"{[p.name for p in paths]} (概率 {self.emoticon_probability}%)"
-                    )
-                    return
             if len(paths) == 1:
                 # 单张：直接发送图片消息
                 await event.send(event.image_result(str(paths[0])))
@@ -1181,8 +1009,6 @@ class EmoticonManagerPlugin(Star):
     @filter.command("随机表情")
     async def random_emoticon(self, event: AstrMessageEvent):
         """#表情包 / #随机表情 —— 手动发送表情包（不受概率限制，始终发送）"""
-        # 标记本次为手动发送，避免发送前钩子再自动附加一张
-        event.set_extra("_emoticon_manual", True)
         files = await asyncio.to_thread(self._list_emoticons)
         if not files:
             yield event.plain_result("暂无表情包，请前往插件管理页面上传！")
@@ -1197,16 +1023,6 @@ class EmoticonManagerPlugin(Star):
             )
             return
         paths = [EMOTICONS_DIR / f["filename"] for f in picked]
-
-        # markdown 可用时优先走 markdown（图 + 尺寸控制）
-        if self._md_available():
-            md = self._build_markdown_for(picked)
-            if md:
-                res = event.make_result()
-                res.message(md)
-                res.use_markdown(True)
-                yield res
-                return
 
         if len(paths) == 1:
             # 单张：直接发送图片消息
@@ -1639,8 +1455,5 @@ class EmoticonManagerPlugin(Star):
 
     # ---------------- 生命周期 ----------------
     async def terminate(self):
-        """插件被停用/卸载时调用：停止本地图床静态服务。"""
-        try:
-            static_host.stop()
-        except Exception as e:
-            logger.warning(f"[{PLUGIN_NAME}] 停止表情图床失败: {e}")
+        """插件被停用/卸载时调用（本插件无后台资源，留空即可）。"""
+        pass

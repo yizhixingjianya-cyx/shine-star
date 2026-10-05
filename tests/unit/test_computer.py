@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 """Tests for astrbot/core/computer module.
 
 This module tests the ComputerClient, Booter implementations (local, shipyard, boxlite),

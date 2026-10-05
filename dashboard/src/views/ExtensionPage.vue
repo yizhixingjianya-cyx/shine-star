@@ -1,3 +1,4 @@
+<!-- [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05. Upstream: https://github.com/AstrBotDevs/AstrBot -->
 <script setup>
 import AstrBotConfig from "@/components/shared/AstrBotConfig.vue";
 import ConsoleDisplayer from "@/components/shared/ConsoleDisplayer.vue";

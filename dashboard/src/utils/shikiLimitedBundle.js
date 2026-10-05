@@ -1,3 +1,5 @@
+// [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+// Upstream: https://github.com/AstrBotDevs/AstrBot
 import { createHighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import bash from "shiki/langs/bash.mjs";

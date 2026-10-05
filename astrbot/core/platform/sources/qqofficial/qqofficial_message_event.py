@@ -1,3 +1,5 @@
+# [shine-stars] Modified from AstrBot upstream. Date: 2026-10-05.
+# Upstream: https://github.com/AstrBotDevs/AstrBot
 import asyncio
 import base64
 import copy
@@ -626,8 +628,8 @@ class QQOfficialMessageEvent(AstrMessageEvent):
 
         return ret
 
+    @staticmethod
     async def _send_with_markdown_fallback(
-        self,
         send_func,
         payload: dict,
         plain_text: str,
@@ -653,7 +655,9 @@ class QQOfficialMessageEvent(AstrMessageEvent):
 
             # QQ 流式 markdown 分片校验：内容必须以换行结尾。
             # 某些边界场景服务端仍可能判定失败，这里做一次修正重试。
-            if stream and self.STREAM_MARKDOWN_NEWLINE_ERROR in str(err):
+            if stream and QQOfficialMessageEvent.STREAM_MARKDOWN_NEWLINE_ERROR in str(
+                err
+            ):
                 retry_payload = payload.copy()
 
                 markdown_payload = retry_payload.get("markdown")
@@ -672,7 +676,7 @@ class QQOfficialMessageEvent(AstrMessageEvent):
                 return await send_func(retry_payload)
 
             if (
-                self.MARKDOWN_NOT_ALLOWED_ERROR not in str(err)
+                QQOfficialMessageEvent.MARKDOWN_NOT_ALLOWED_ERROR not in str(err)
                 or not payload.get("markdown")
                 or not plain_text
             ):
