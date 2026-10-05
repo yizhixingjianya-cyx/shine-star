@@ -7,11 +7,11 @@
 
 <br />
 
-<a href="#快速开始">快速开始</a> ｜ <a href="#内置插件">内置插件</a> ｜ <a href="#部署">部署</a> ｜ <a href="https://docs.astrbot.app/">上游文档</a> ｜ <a href="https://github.com/fishpond-studio/shine-stars/issues">问题反馈</a>
+<a href="#快速开始">快速开始</a> ｜ <a href="#内置插件">内置插件</a> ｜ <a href="#部署">部署</a> ｜ <a href="https://docs.astrbot.app/">上游文档</a> ｜ <a href="https://github.com/yizhixingjianya-cyx/shine-stars/issues">问题反馈</a>
 
 </div>
 
-> **说明**：本仓库 `shine-stars` 是 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 的修改版分支，遵循 **GNU AGPL-3.0-or-later** 协议分发。修改声明见 [NOTICE](NOTICE)，对应源码见 <https://github.com/fishpond-studio/shine-stars>。
+> **说明**：本仓库 `shine-stars` 是 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 的修改版分支，遵循 **GNU AGPL-3.0-or-later** 协议分发。修改声明见 [NOTICE](NOTICE)，对应源码见 <https://github.com/yizhixingjianya-cyx/shine-stars>。
 
 ## 简介
 
@@ -55,7 +55,7 @@ AstrBot 是一个开源的一站式 Agent 聊天机器人平台，可接入主�
 > 需要 Python 3.12+ 与 [uv](https://docs.astral.sh/uv/)。
 
 ```bash
-git clone https://github.com/fishpond-studio/shine-stars.git
+git clone https://github.com/yizhixingjianya-cyx/shine-stars.git
 cd shine-stars
 uv sync
 uv run main.py
