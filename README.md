@@ -41,7 +41,6 @@ AstrBot 是一个开源的一站式 Agent 聊天机器人平台，可接入主�
 
 | 插件 | 说明 | 作者 |
 |------|------|------|
-| **FTV 兽频道**（`astrbot_plugin_ftv`） | 将 FTV / FurryWill 毛装档案平台封装为指令与 AI 工具（热门、随机、搜索、兽档案等），支持渲染档案图 / 统计图并嵌入回复。 | cyx |
 | **每日鉴毛**（`astrbot_plugin_furrywill`） | 「每日鉴毛」抽卡指令 + AI 工具（随机抽卡、期数 / 名称 / 地区 / 工作室查询），支持卡片图嵌入回复。 | cyx |
 | **群聊准入（注册码 / 白名单）**（`astrbot_plugin_group_gate`） | 新群需提供注册码或由后台加入白名单才能与机器人对话，未授权群的消息不会进入 AI 对话。 | TRAE |
 | **指令上传面板**（`astrbot_plugin_cmd_uploader`） | 汇总全部已注册指令，在 WebUI 中按需手动上传为 QQ 官方指令面板，配置持久化保存。 | cyx |
@@ -87,22 +86,7 @@ pnpm dev
 
 完整清单请参考上游文档：[支持的消息平台](https://docs.astrbot.app/) ｜ [支持的模型服务](https://docs.astrbot.app/)。
 
-## 开发与贡献
-
-本项目使用 `ruff` 进行代码格式化与静态检查，并通过 `pre-commit` 在提交前自动执行：
-
-```bash
-pip install pre-commit
-pre-commit install
-
-# 也可手动执行
-ruff format .
-ruff check .
-```
-
-修改 WebUI 时请保持组件化与整洁的代码风格；当后端接口或 OpenAPI 定义发生变化时，请在 `dashboard` 目录执行 `pnpm generate:api` 重新生成前端 API 客户端。
-
-欢迎提交 Issue 与 Pull Request。上游项目相关的功能建议与问题，也可反馈至 [AstrBot 仓库](https://github.com/AstrBotDevs/AstrBot/issues)。
+##
 
 ## 许可证与合规
 
@@ -115,12 +99,7 @@ ruff check .
 
 感谢上游 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 及所有 Contributors 与插件开发者 ❤️
 
-开源伙伴 ❤️
-
-- [NapNeko/NapCatQQ](https://github.com/NapNeko/NapCatQQ) - 出色的猫猫框架
-- [Mai-with-u/MaiBot](https://github.com/Mai-with-u/MaiBot) - QQ 中强大的“数字生命”
-
-<div align="center">
+<br />
 
 _陪伴与能力从来不应该是对立面。我们希望创造的是一个既能理解情绪、给予陪伴，也能可靠完成工作的机器人。_
 

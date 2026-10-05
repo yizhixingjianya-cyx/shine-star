@@ -35,11 +35,9 @@ data/plugins/astrbot_plugin_qq_tools/
 data/plugins/astrbot_plugin_qqadmin/
 data/plugins/astrbot_plugin_status/
 data/plugins/astrbot_plugin_private_companion/
-# Third-party fonts bundled by the FTV plugin are not redistributed with this
-# repo. hanyi.otf (汉仪文黑, commercial) and mi.ttf (no license info) must
-# never be committed; the OFL/Noto fonts may be added only if desired.
-data/plugins/astrbot_plugin_ftv/fonts/hanyi.otf
-data/plugins/astrbot_plugin_ftv/fonts/mi.ttf
+# FTV plugin removed from this repository (kept locally only, not redistributed;
+# its bundled fonts include commercial / unlicensed ones).
+data/plugins/astrbot_plugin_ftv/
 configs/session
 configs/config.yaml
 cmd_config.json

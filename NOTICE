@@ -34,7 +34,6 @@ bundled in this repository; other plugins used during development are kept
 locally and are not distributed.
 
   - astrbot_plugin_cmd_uploader / "指令面板" (cyx) - not published
-  - astrbot_plugin_ftv / "FTV 兽频道" (cyx) - not published
   - astrbot_plugin_furrywill / "每日鉴毛" (cyx) - not published
   - astrbot_plugin_group_gate / "群聊准入" (TRAE) - not published
   - astrbot_plugin_memory_ctx / "记忆压缩与上下文管理" (TRAE) - not published
