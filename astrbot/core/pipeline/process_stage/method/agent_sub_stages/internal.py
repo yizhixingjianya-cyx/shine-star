@@ -225,11 +225,14 @@ class InternalAgentSubStage(Stage):
             if await call_event_hook(event, EventType.OnWaitingLLMRequestEvent):
                 return
 
-            async with session_lock_manager.acquire_lock(event.unified_msg_origin):
-                logger.debug("acquired session lock for llm request")
-                agent_runner: AgentRunner | None = None
-                runner_registered = False
-                try:
+            agent_runner: AgentRunner | None = None
+            runner_registered = False
+            try:
+                # 会话锁仅在构建阶段(读取历史/创建会话/应用 reset)持有, 保证同会话的
+                # 历史读写不会被并发修改; 构建完成后立即释放, 从而允许同一会话的多条
+                # 消息并发调用 LLM, 不再被单个卡顿的 provider 长时间阻塞整个会话.
+                async with session_lock_manager.acquire_lock(event.unified_msg_origin):
+                    logger.debug("acquired session lock for llm request (build)")
                     build_cfg = replace(
                         self.main_agent_cfg,
                         provider_wake_prefix=provider_wake_prefix,
@@ -285,59 +288,63 @@ class InternalAgentSubStage(Stage):
 
                     register_active_runner(event.unified_msg_origin, agent_runner)
                     runner_registered = True
-                    action_type = event.get_extra("action_type")
+                action_type = event.get_extra("action_type")
 
-                    event.trace.record(
-                        "astr_agent_prepare",
-                        system_prompt=req.system_prompt,
-                        tools=req.func_tool.names() if req.func_tool else [],
-                        stream=streaming_response,
-                        chat_provider={
-                            "id": provider.provider_config.get("id", ""),
-                            "model": provider.get_model(),
-                        },
+                event.trace.record(
+                    "astr_agent_prepare",
+                    system_prompt=req.system_prompt,
+                    tools=req.func_tool.names() if req.func_tool else [],
+                    stream=streaming_response,
+                    chat_provider={
+                        "id": provider.provider_config.get("id", ""),
+                        "model": provider.get_model(),
+                    },
+                )
+
+                # 检测 Live Mode
+                if action_type == "live":
+                    # Live Mode: 使用 run_live_agent
+                    logger.info(
+                        "[Internal Agent] Live Mode detected; enabling TTS processing."
                     )
 
-                    # 检测 Live Mode
-                    if action_type == "live":
-                        # Live Mode: 使用 run_live_agent
-                        logger.info(
-                            "[Internal Agent] Live Mode detected; enabling TTS processing."
+                    # 获取 TTS Provider
+                    tts_provider = await self.ctx.plugin_manager.context.get_using_tts_provider_async(
+                        event.unified_msg_origin
+                    )
+
+                    if not tts_provider:
+                        logger.warning(
+                            "[Live Mode] No TTS provider is configured; using "
+                            "standard streaming mode."
                         )
 
-                        # 获取 TTS Provider
-                        tts_provider = await self.ctx.plugin_manager.context.get_using_tts_provider_async(
-                            event.unified_msg_origin
-                        )
-
-                        if not tts_provider:
-                            logger.warning(
-                                "[Live Mode] No TTS provider is configured; using "
-                                "standard streaming mode."
-                            )
-
-                        # 使用 run_live_agent，总是使用流式响应
-                        event.set_result(
-                            MessageEventResult()
-                            .set_result_content_type(ResultContentType.STREAMING_RESULT)
-                            .set_async_stream(
-                                run_live_agent(
-                                    agent_runner,
-                                    tts_provider,
-                                    self.max_step,
-                                    self.show_tool_use,
-                                    self.show_tool_call_result,
-                                    show_reasoning=self.show_reasoning,
-                                    buffer_intermediate_messages=self.buffer_intermediate_messages,
-                                ),
+                    # 使用 run_live_agent，总是使用流式响应
+                    event.set_result(
+                        MessageEventResult()
+                        .set_result_content_type(ResultContentType.STREAMING_RESULT)
+                        .set_async_stream(
+                            run_live_agent(
+                                agent_runner,
+                                tts_provider,
+                                self.max_step,
+                                self.show_tool_use,
+                                self.show_tool_call_result,
+                                show_reasoning=self.show_reasoning,
+                                buffer_intermediate_messages=self.buffer_intermediate_messages,
                             ),
-                        )
-                        yield
+                        ),
+                    )
+                    yield
 
-                        # 保存历史记录
-                        if agent_runner.done() and (
-                            not event.is_stopped() or agent_runner.was_aborted()
+                    # 保存历史记录
+                    if agent_runner.done() and (
+                        not event.is_stopped() or agent_runner.was_aborted()
+                    ):
+                        async with session_lock_manager.acquire_lock(
+                            event.unified_msg_origin
                         ):
+                            logger.debug("acquired session lock for llm request (save)")
                             await self._save_to_history(
                                 event,
                                 req,
@@ -347,72 +354,76 @@ class InternalAgentSubStage(Stage):
                                 user_aborted=agent_runner.was_aborted(),
                             )
 
-                    elif streaming_response and not stream_to_general:
-                        # 流式响应
-                        event.set_result(
-                            MessageEventResult()
-                            .set_result_content_type(ResultContentType.STREAMING_RESULT)
-                            .set_async_stream(
-                                run_agent(
-                                    agent_runner,
-                                    self.max_step,
-                                    self.show_tool_use,
-                                    self.show_tool_call_result,
-                                    show_reasoning=self.show_reasoning,
-                                    buffer_intermediate_messages=self.buffer_intermediate_messages,
-                                ),
+                elif streaming_response and not stream_to_general:
+                    # 流式响应
+                    event.set_result(
+                        MessageEventResult()
+                        .set_result_content_type(ResultContentType.STREAMING_RESULT)
+                        .set_async_stream(
+                            run_agent(
+                                agent_runner,
+                                self.max_step,
+                                self.show_tool_use,
+                                self.show_tool_call_result,
+                                show_reasoning=self.show_reasoning,
+                                buffer_intermediate_messages=self.buffer_intermediate_messages,
                             ),
-                        )
-                        yield
-                        if agent_runner.done():
-                            if final_llm_resp := agent_runner.get_final_llm_resp():
-                                if final_llm_resp.completion_text:
-                                    chain = (
-                                        MessageChain()
-                                        .message(final_llm_resp.completion_text)
-                                        .chain
-                                    )
-                                elif final_llm_resp.result_chain:
-                                    chain = final_llm_resp.result_chain.chain
-                                else:
-                                    chain = MessageChain().chain
-                                event.set_result(
-                                    MessageEventResult(
-                                        chain=chain,
-                                        result_content_type=ResultContentType.STREAMING_FINISH,
-                                    ),
+                        ),
+                    )
+                    yield
+                    if agent_runner.done():
+                        if final_llm_resp := agent_runner.get_final_llm_resp():
+                            if final_llm_resp.completion_text:
+                                chain = (
+                                    MessageChain()
+                                    .message(final_llm_resp.completion_text)
+                                    .chain
                                 )
-                    else:
-                        async for _ in run_agent(
-                            agent_runner,
-                            self.max_step,
-                            self.show_tool_use,
-                            self.show_tool_call_result,
-                            stream_to_general,
-                            show_reasoning=self.show_reasoning,
-                            buffer_intermediate_messages=self.buffer_intermediate_messages,
-                        ):
-                            yield
+                            elif final_llm_resp.result_chain:
+                                chain = final_llm_resp.result_chain.chain
+                            else:
+                                chain = MessageChain().chain
+                            event.set_result(
+                                MessageEventResult(
+                                    chain=chain,
+                                    result_content_type=ResultContentType.STREAMING_FINISH,
+                                ),
+                            )
+                else:
+                    async for _ in run_agent(
+                        agent_runner,
+                        self.max_step,
+                        self.show_tool_use,
+                        self.show_tool_call_result,
+                        stream_to_general,
+                        show_reasoning=self.show_reasoning,
+                        buffer_intermediate_messages=self.buffer_intermediate_messages,
+                    ):
+                        yield
 
-                    final_resp = agent_runner.get_final_llm_resp()
+                final_resp = agent_runner.get_final_llm_resp()
 
-                    event.trace.record(
-                        "astr_agent_complete",
-                        stats=agent_runner.stats.to_dict(),
-                        resp=final_resp.completion_text if final_resp else None,
+                event.trace.record(
+                    "astr_agent_complete",
+                    stats=agent_runner.stats.to_dict(),
+                    resp=final_resp.completion_text if final_resp else None,
+                )
+
+                asyncio.create_task(
+                    _record_internal_agent_stats(
+                        event,
+                        req,
+                        agent_runner,
+                        final_resp,
                     )
+                )
 
-                    asyncio.create_task(
-                        _record_internal_agent_stats(
-                            event,
-                            req,
-                            agent_runner,
-                            final_resp,
-                        )
-                    )
-
-                    # 检查事件是否被停止，如果被停止则不保存历史记录
-                    if not event.is_stopped() or agent_runner.was_aborted():
+                # 检查事件是否被停止，如果被停止则不保存历史记录
+                if not event.is_stopped() or agent_runner.was_aborted():
+                    async with session_lock_manager.acquire_lock(
+                        event.unified_msg_origin
+                    ):
+                        logger.debug("acquired session lock for llm request (save)")
                         await self._save_to_history(
                             event,
                             req,
@@ -422,16 +433,16 @@ class InternalAgentSubStage(Stage):
                             user_aborted=agent_runner.was_aborted(),
                         )
 
-                    asyncio.create_task(
-                        Metric.upload(
-                            llm_tick=1,
-                            model_name=agent_runner.provider.get_model(),
-                            provider_type=agent_runner.provider.meta().type,
-                        ),
-                    )
-                finally:
-                    if runner_registered and agent_runner is not None:
-                        unregister_active_runner(event.unified_msg_origin, agent_runner)
+                asyncio.create_task(
+                    Metric.upload(
+                        llm_tick=1,
+                        model_name=agent_runner.provider.get_model(),
+                        provider_type=agent_runner.provider.meta().type,
+                    ),
+                )
+            finally:
+                if runner_registered and agent_runner is not None:
+                    unregister_active_runner(event.unified_msg_origin, agent_runner)
 
         except Exception as e:
             logger.error(f"Error occurred while processing agent: {e}")
