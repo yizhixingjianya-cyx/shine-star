@@ -13,6 +13,9 @@ without duplicating the ~70 database methods of ``BaseDatabase``.
 
 from __future__ import annotations
 
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote_plus
@@ -24,6 +27,10 @@ from sqlmodel import SQLModel, col, select
 
 from astrbot.core.db.po import PlatformStat, UmoAlias
 from astrbot.core.db.sqlite import SQLiteDatabase
+
+# Use the shared astrbot logger by name rather than importing it from
+# ``astrbot.core``, which would be circular: that package imports this module.
+logger = logging.getLogger("astrbot")
 
 __all__ = ["MySQLDatabase", "build_mysql_url"]
 
@@ -62,7 +69,16 @@ def build_mysql_url(
 
 
 class MySQLDatabase(SQLiteDatabase):
-    """MySQL backend sharing the SQLite query layer."""
+    """MySQL backend sharing the SQLite query layer.
+
+    The SQLite query layer is reused by inheritance (all portable SQLAlchemy
+    queries and the ~70 ``BaseDatabase`` methods come from
+    :class:`~astrbot.core.db.sqlite.SQLiteDatabase`), but the SQLite
+    *constructor* is deliberately bypassed: it hardcodes
+    ``self.DATABASE_URL = sqlite+aiosqlite:///...`` and builds a SQLite engine,
+    which for MySQL would allocate a connection pool that is never used and
+    never disposed.
+    """
 
     def __init__(self, url: str) -> None:
         """Initialize the MySQL backend.
@@ -70,18 +86,29 @@ class MySQLDatabase(SQLiteDatabase):
         Args:
             url: A full ``mysql+aiomysql://`` SQLAlchemy URL.
         """
-        # ``SQLiteDatabase.__init__`` builds the engine from ``self.DATABASE_URL``
-        # and inspects it to decide on SQLite-specific connect args, so setting
-        # the URL first is enough to reuse it for MySQL.
-        super().__init__(db_path="")
         self.DATABASE_URL = url
         self.db_path = ""
         self.inited = False
+        # The event loop the current engine/pool was created on. aiomysql binds
+        # its connections to that loop; reusing them from another loop raises
+        # "attached to a different loop" and leaks the connection.
+        self._current_loop: asyncio.AbstractEventLoop | None = None
+        # Initialize the engine/session factory for the MySQL URL directly. We
+        # intentionally do NOT call ``SQLiteDatabase.__init__`` (see class
+        # docstring), so no SQLite engine is ever constructed.
         self._rebuild_engine()
 
     def _rebuild_engine(self) -> None:
-        """Recreate the engine and session factory for the MySQL URL."""
+        """Create the engine and session factory for the MySQL URL."""
         from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+        previous = getattr(self, "engine", None)
+        if previous is not None:
+            # Drop the old pool; otherwise every loop switch leaks one.
+            try:
+                previous.sync_engine.dispose(close=False)
+            except Exception:
+                logger.debug("disposing previous MySQL engine failed", exc_info=True)
 
         self.engine = create_async_engine(
             self.DATABASE_URL,
@@ -96,6 +123,32 @@ class MySQLDatabase(SQLiteDatabase):
             class_=AsyncSession,
             expire_on_commit=False,
         )
+
+    @asynccontextmanager
+    async def get_db(self):
+        """Yield a session bound to the current event loop.
+
+        aiomysql pools are bound to the loop that created them, so when the
+        running loop changes the engine is rebuilt and re-initialized. Without
+        this, calls made from a different loop fail with "attached to a
+        different loop" and the connection is never returned to the pool.
+        """
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+
+        if current_loop is not None and self._current_loop is not current_loop:
+            self._rebuild_engine()
+            self._current_loop = current_loop
+            self.inited = False
+
+        if not self.inited:
+            await self.initialize()
+            self.inited = True
+
+        async with self.AsyncSessionLocal() as session:
+            yield session
 
     async def initialize(self) -> None:
         """Create missing tables and skip SQLite-only migrations."""

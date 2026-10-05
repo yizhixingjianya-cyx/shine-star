@@ -56,10 +56,63 @@ def make_event(
 
 
 @pytest.mark.asyncio
-async def test_active_reply_does_not_create_conversation_when_current_missing():
+async def test_active_reply_creates_conversation_when_current_missing():
+    """Active reply in a session with no conversation must create one.
+
+    Active reply commonly fires in a session that has no conversation yet (a
+    group the bot was just added to). It used to log an error and give up, which
+    made active reply silently fail there; it now creates the conversation and
+    proceeds with the LLM request instead.
+    """
+    created_conv = SimpleNamespace(cid="cid-new")
     conv_mgr = SimpleNamespace(
         get_curr_conversation_id=AsyncMock(return_value=None),
-        new_conversation=AsyncMock(),
+        new_conversation=AsyncMock(return_value="cid-new"),
+        get_conversation=AsyncMock(return_value=created_conv),
+    )
+    main = make_main_with_conversation_manager(conv_mgr)
+    main.context.get_config.return_value = {
+        "provider_ltm_settings": {
+            "group_icl_enable": False,
+            "active_reply": {"enable": True},
+        },
+    }
+    main.context.get_using_provider.return_value = object()
+    main.group_chat_context = SimpleNamespace(
+        need_active_reply=AsyncMock(return_value=True),
+        handle_message=AsyncMock(),
+    )
+    event = make_event()
+    llm_request = object()
+    event.request_llm.return_value = llm_request
+
+    results = [item async for item in main.on_message(event)]
+
+    conv_mgr.get_curr_conversation_id.assert_awaited_once_with(event.unified_msg_origin)
+    # A conversation is created instead of bailing out.
+    conv_mgr.new_conversation.assert_awaited_once_with(
+        event.unified_msg_origin,
+        platform_id=event.get_platform_id(),
+    )
+    conv_mgr.get_conversation.assert_awaited_once_with(
+        event.unified_msg_origin,
+        "cid-new",
+    )
+    assert results == [llm_request]
+    event.request_llm.assert_called_once_with(
+        prompt="hello",
+        session_id="session-1",
+        image_urls=[],
+        conversation=created_conv,
+    )
+
+
+@pytest.mark.asyncio
+async def test_active_reply_gives_up_when_conversation_creation_fails():
+    """If creating the conversation fails, active reply must still bail out."""
+    conv_mgr = SimpleNamespace(
+        get_curr_conversation_id=AsyncMock(return_value=None),
+        new_conversation=AsyncMock(return_value=None),
         get_conversation=AsyncMock(),
     )
     main = make_main_with_conversation_manager(conv_mgr)
@@ -79,8 +132,7 @@ async def test_active_reply_does_not_create_conversation_when_current_missing():
     results = [item async for item in main.on_message(event)]
 
     assert results == []
-    conv_mgr.get_curr_conversation_id.assert_awaited_once_with(event.unified_msg_origin)
-    conv_mgr.new_conversation.assert_not_called()
+    conv_mgr.new_conversation.assert_awaited_once()
     conv_mgr.get_conversation.assert_not_called()
     event.request_llm.assert_not_called()
 
