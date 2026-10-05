@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -32,6 +33,9 @@ class MemoryCtxPlugin(Star):
         self.store = MemoryStore(self.context.get_db())
         self.engine = MemoryEngine(self.context, self.config, self.store, self.logger)
         self._jobs: list[Any] = []
+        # Strong references to in-flight background compressions so the tasks
+        # are not garbage collected before they finish.
+        self._compress_tasks: set[asyncio.Task] = set()
 
     async def initialize(self) -> None:
         """Create tables, register web APIs and schedule cron jobs."""
@@ -78,6 +82,12 @@ class MemoryCtxPlugin(Star):
 
     async def terminate(self) -> None:
         """Remove the cron jobs registered by this plugin."""
+        pending = list(self._compress_tasks)
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        self._compress_tasks.clear()
         for job in self._jobs:
             try:
                 await self.context.cron_manager.delete_job(job.job_id)
@@ -198,23 +208,30 @@ class MemoryCtxPlugin(Star):
 
     @filter.after_message_sent()
     async def compress_after_turn(self, event: AstrMessageEvent) -> None:
-        """Compress the session only after the whole reply has been delivered.
+        """Schedule compression after the whole reply has been delivered.
 
         Context compression is deliberately gated to the end of a conversation
         turn: folding history while the model is still answering would corrupt
-        the ongoing context.
+        the ongoing context. The work itself runs as a background task because
+        it includes an LLM summarization call; awaiting it inline would keep
+        this turn's session lock held and delay the next interactive turn.
 
         Args:
             event: The message event.
         """
         if not event.get_extra("_memory_turn_done"):
             return
-        try:
-            await self.engine.compress_session(
-                event.unified_msg_origin, reason="turn_end"
-            )
-        except Exception as exc:
-            self.logger.error(f"post-turn compression failed: {exc}", exc_info=True)
+        umo = event.unified_msg_origin
+
+        async def _run_compression() -> None:
+            try:
+                await self.engine.compress_session(umo, reason="turn_end")
+            except Exception as exc:
+                self.logger.error(f"post-turn compression failed: {exc}", exc_info=True)
+
+        task = asyncio.create_task(_run_compression())
+        self._compress_tasks.add(task)
+        task.add_done_callback(self._compress_tasks.discard)
 
     @filter.llm_tool(name="search_memory")
     async def search_memory(

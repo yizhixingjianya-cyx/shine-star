@@ -239,10 +239,19 @@ class Main(star.Star):
                     )
 
                     if not session_curr_cid:
-                        logger.error(
-                            "当前未处于对话状态，无法主动回复，请确保 平台设置->会话隔离(unique_session) 未开启，并使用 /new 创建一个会话。",
+                        # Active reply often fires in a session that has no
+                        # conversation yet (for example a group the bot was just
+                        # added to). Create one instead of giving up, otherwise
+                        # active reply silently fails in "empty" sessions.
+                        session_curr_cid = (
+                            await self.context.conversation_manager.new_conversation(
+                                event.unified_msg_origin,
+                                platform_id=event.get_platform_id(),
+                            )
                         )
-                        return
+                        if not session_curr_cid:
+                            logger.error("创建会话失败，无法主动回复")
+                            return
 
                     conv = await self.context.conversation_manager.get_conversation(
                         event.unified_msg_origin,

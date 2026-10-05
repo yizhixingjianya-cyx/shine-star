@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from contextlib import aclosing
 
 from astrbot.core import logger
 from astrbot.core.config.agent_runner import normalize_agent_runner
@@ -49,5 +50,10 @@ class AgentRequestSubStage(Stage):
             )
             return
 
-        async for resp in self.agent_sub_stage.process(event, self.prov_wake_prefix):
-            yield resp
+        # 用 aclosing 显式关闭子生成器, 保证管道提前停止时该生成器被同步关闭,
+        # 其内部持有的 session lock 等资源得以释放.
+        async with aclosing(
+            self.agent_sub_stage.process(event, self.prov_wake_prefix)
+        ) as agent_agen:
+            async for resp in agent_agen:
+                yield resp

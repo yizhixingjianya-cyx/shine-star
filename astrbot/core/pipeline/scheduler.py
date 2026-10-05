@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from contextlib import aclosing
 from typing import cast
 
 from astrbot.core import logger
@@ -51,23 +52,28 @@ class PipelineScheduler:
             if isinstance(coroutine, AsyncGenerator):
                 # 如果返回的是异步生成器, 实现洋葱模型的核心
                 agen = cast(AsyncGenerator[None], coroutine)
-                async for _ in agen:
-                    # 此处是前置处理完成后的暂停点(yield), 下面开始执行后续阶段
-                    if event.is_stopped():
-                        logger.debug(
-                            f"Stage {stage.__class__.__name__} stopped event propagation.",
-                        )
-                        break
+                # 事件被停止时 async for 会 break, 但 break 不会关闭异步生成器,
+                # 生成器会一直暂停在 yield 处, 其内部持有的资源 (如 session lock)
+                # 也因此无法释放, 直到该生成器被 GC 回收. 这里用 aclosing 保证
+                # 离开作用域时显式关闭生成器, 从而同步地级联释放下游资源.
+                async with aclosing(agen):
+                    async for _ in agen:
+                        # 此处是前置处理完成后的暂停点(yield), 下面开始执行后续阶段
+                        if event.is_stopped():
+                            logger.debug(
+                                f"Stage {stage.__class__.__name__} stopped event propagation.",
+                            )
+                            break
 
-                    # 递归调用, 处理所有后续阶段
-                    await self._process_stages(event, i + 1)
+                        # 递归调用, 处理所有后续阶段
+                        await self._process_stages(event, i + 1)
 
-                    # 此处是后续所有阶段处理完毕后返回的点, 执行后置处理
-                    if event.is_stopped():
-                        logger.debug(
-                            f"Stage {stage.__class__.__name__} stopped event propagation.",
-                        )
-                        break
+                        # 此处是后续所有阶段处理完毕后返回的点, 执行后置处理
+                        if event.is_stopped():
+                            logger.debug(
+                                f"Stage {stage.__class__.__name__} stopped event propagation.",
+                            )
+                            break
             else:
                 # 如果返回的是普通协程(不含yield的async函数), 则不进入下一层(基线条件)
                 # 简单地等待它执行完成, 然后继续执行下一个阶段

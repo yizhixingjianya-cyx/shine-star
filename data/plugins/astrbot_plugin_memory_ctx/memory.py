@@ -72,6 +72,10 @@ class MemoryEngine:
         self.store = store
         self.logger = logger
         self._ltm_read_error_logged = False
+        # Sessions with a compression pass already in flight. Compression now
+        # runs as a background task, so without this guard a burst of messages
+        # would spawn overlapping passes that each pay for an LLM summary.
+        self._compressing: set[str] = set()
 
     def cfg(self, key: str, default: Any = None) -> Any:
         """Read a configuration value with a fallback default.
@@ -523,6 +527,10 @@ class MemoryEngine:
     ) -> dict:
         """Compress one session: fold older turns into the rolling summary.
 
+        The session lock is only held for the short snapshot read and the final
+        write-back, never across the LLM summarization. That keeps a background
+        turn-end compression from stalling interactive turns in the session.
+
         Args:
             umo: Unified message origin.
             reason: Trigger source, ``turn_end`` / ``incremental`` / ``global`` /
@@ -536,20 +544,27 @@ class MemoryEngine:
             return {"skipped": "disabled"}
         if reason != "manual" and not self.in_scope(umo):
             return {"skipped": "out_of_scope"}
-        conv_mgr = self.context.conversation_manager
-        conversation_id = await conv_mgr.get_curr_conversation_id(umo)
-        if not conversation_id:
-            return {"skipped": "no_conversation"}
-        async with session_lock_manager.acquire_lock(umo):
-            conversation = await conv_mgr.get_conversation(umo, conversation_id)
-            if not conversation:
+        if umo in self._compressing:
+            return {"skipped": "already_running"}
+        self._compressing.add(umo)
+        try:
+            conv_mgr = self.context.conversation_manager
+            conversation_id = await conv_mgr.get_curr_conversation_id(umo)
+            if not conversation_id:
                 return {"skipped": "no_conversation"}
-            history = json.loads(conversation.history or "[]")
-            head, body = self._split_leading_system(history)
+
+            # Phase 1: snapshot the history and pick the prefix to fold. The
+            # session lock covers only this read; summarizing is an LLM call
+            # that can take seconds and must not stall user turns.
+            async with session_lock_manager.acquire_lock(umo):
+                conversation = await conv_mgr.get_conversation(umo, conversation_id)
+                if not conversation:
+                    return {"skipped": "no_conversation"}
+                history = json.loads(conversation.history or "[]")
+            _head, body = self._split_leading_system(history)
             prior_summaries, body = self._strip_summary_pairs(body)
             split = self._split_index(body, int(self.cfg("keep_recent_turns", 6)))
             old = body[:split]
-            recent = body[split:]
             raw_old = [
                 message
                 for message in old
@@ -558,6 +573,9 @@ class MemoryEngine:
             prior_text = "\n".join(item for item in prior_summaries if item).strip()
             if not raw_old and not (force and prior_text):
                 return {"skipped": "nothing_to_compress"}
+
+            # Phase 2: summarize and persist the derived memories without the
+            # session lock, so concurrent user turns are not blocked.
             summary, model_used = await self._summarize(umo, raw_old, prior_text)
             if not summary:
                 return {"skipped": "summary_failed"}
@@ -567,48 +585,62 @@ class MemoryEngine:
                 except Exception as exc:
                     self.logger.warning(f"archive failed: {exc}")
             timestamp = now_ts()
-            new_history = list(head)
-            summary_tokens = 0
-            if summary:
-                # Daily memory lives only in the database and is retrieved on
-                # demand; it is deliberately NOT written back into the context.
-                summary_tokens = self.count_tokens(
-                    [{"role": "user", "content": summary}]
+            # Daily memory lives only in the database and is retrieved on
+            # demand; it is deliberately NOT written back into the context.
+            summary_tokens = self.count_tokens([{"role": "user", "content": summary}])
+            try:
+                embedding = await self._embed(summary)
+                await self.store.upsert_segment(
+                    umo=umo,
+                    session_type=self.session_type(umo),
+                    tier=1,
+                    period_key=self._day_key(),
+                    seg_start_ts=0,
+                    seg_end_ts=timestamp,
+                    summary=summary,
+                    summary_tokens=summary_tokens,
+                    msg_count=len(raw_old),
+                    model_used=model_used,
+                    ttl_days=int(self.cfg("summary_ttl_days", 3)),
+                    embedding=embedding,
                 )
-                try:
-                    embedding = await self._embed(summary)
-                    await self.store.upsert_segment(
-                        umo=umo,
-                        session_type=self.session_type(umo),
-                        tier=1,
-                        period_key=self._day_key(),
-                        seg_start_ts=0,
-                        seg_end_ts=timestamp,
-                        summary=summary,
-                        summary_tokens=summary_tokens,
-                        msg_count=len(raw_old),
-                        model_used=model_used,
-                        ttl_days=int(self.cfg("summary_ttl_days", 3)),
-                        embedding=embedding,
+            except Exception as exc:
+                self.logger.error(f"persist segment failed: {exc}", exc_info=True)
+            # The rolling long-term memory is what stays in the context.
+            await self._refresh_long_term(umo, summary, model_used)
+
+            # Phase 3: drop the folded prefix under the lock. Re-read first so
+            # turns that arrived while summarizing are preserved instead of
+            # being clobbered by a stale write.
+            async with session_lock_manager.acquire_lock(umo):
+                conversation = await conv_mgr.get_conversation(umo, conversation_id)
+                if not conversation:
+                    return {"skipped": "no_conversation"}
+                current = json.loads(conversation.history or "[]")
+                cur_head, cur_body = self._split_leading_system(current)
+                _cur_prior, cur_body = self._strip_summary_pairs(cur_body)
+                if cur_body[: len(old)] != old:
+                    self.logger.warning(
+                        f"history changed during compression for {umo}; skipping "
+                        "write-back to avoid dropping messages."
                     )
-                except Exception as exc:
-                    self.logger.error(f"persist segment failed: {exc}", exc_info=True)
-                # The rolling long-term memory is what stays in the context.
-                await self._refresh_long_term(umo, summary, model_used)
-            new_history.extend(recent)
-            trimmed, _ = await self.enforce_limit(umo, conversation_id, new_history)
-            await conv_mgr.update_conversation(
-                umo,
-                conversation_id,
-                history=trimmed,
-                token_usage=self.count_tokens(trimmed),
-            )
-            await self.store.upsert_cursor(umo, last_compress_at=timestamp)
+                    return {"skipped": "history_changed"}
+                new_history = list(cur_head) + list(cur_body[len(old) :])
+                trimmed, _ = await self.enforce_limit(umo, conversation_id, new_history)
+                await conv_mgr.update_conversation(
+                    umo,
+                    conversation_id,
+                    history=trimmed,
+                    token_usage=self.count_tokens(trimmed),
+                )
+                await self.store.upsert_cursor(umo, last_compress_at=timestamp)
             return {
                 "compressed": bool(summary),
                 "messages": len(raw_old),
                 "summary_tokens": summary_tokens,
             }
+        finally:
+            self._compressing.discard(umo)
 
     async def _refresh_long_term(
         self, umo: str, daily_summary: str, model_used: str | None
