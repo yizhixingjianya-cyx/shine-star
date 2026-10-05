@@ -5,13 +5,9 @@
 <img src="https://img.shields.io/badge/python-3.12+-blue.svg" alt="python">
 <img src="https://img.shields.io/badge/license-AGPL--3.0--or--later-76bad9.svg" alt="license">
 
-<br><br>
+<br />
 
-<a href="#快速开始">快速开始</a> ｜
-<a href="#内置插件">内置插件</a> ｜
-<a href="#部署">部署</a> ｜
-<a href="https://docs.astrbot.app/">上游文档</a> ｜
-<a href="https://github.com/fishpond-studio/shine-stars/issues">问题反馈</a>
+<a href="#快速开始">快速开始</a> ｜ <a href="#内置插件">内置插件</a> ｜ <a href="#部署">部署</a> ｜ <a href="https://docs.astrbot.app/">上游文档</a> ｜ <a href="https://github.com/fishpond-studio/shine-stars/issues">问题反馈</a>
 
 </div>
 
@@ -34,18 +30,22 @@ AstrBot 是一个开源的一站式 Agent 聊天机器人平台，可接入主�
 7. 💻 WebUI 支持。
 8. 🌈 Web ChatUI 支持，内置代理沙盒、网页搜索等。
 9. 🌐 国际化（i18n）支持。
+10. 本版本主要针对qq官机特化，其他支持暂未测试
+11. <br />
 
 ## 内置插件
 
 本分支预置以下插件（位于 `data/plugins/`），均可在 WebUI 面板中查看与配置：
 
-| 插件 | 说明 | 作者 |
-|------|------|------|
-| **每日鉴毛**（`astrbot_plugin_furrywill`） | 「每日鉴毛」抽卡指令 + AI 工具（随机抽卡、期数 / 名称 / 地区 / 工作室查询），支持卡片图嵌入回复。 | cyx |
-| **群聊准入（注册码 / 白名单）**（`astrbot_plugin_group_gate`） | 新群需提供注册码或由后台加入白名单才能与机器人对话，未授权群的消息不会进入 AI 对话。 | TRAE |
-| **指令上传面板**（`astrbot_plugin_cmd_uploader`） | 汇总全部已注册指令，在 WebUI 中按需手动上传为 QQ 官方指令面板，配置持久化保存。 | cyx |
-| **记忆压缩与上下文管理**（`astrbot_plugin_memory_ctx`） | 对话结束后压缩并归档会话记忆、分层保留长期记忆，严格控制单会话上下文长度，并提供记忆面板与检索工具。 | TRAE |
-| **情绪表情包**（`emoticon_manager`） | 表情包插件，支持情感匹配与 WebUI 管理编辑。 | @bilibili彩凌 |
+| 插件                                               | 说明                                                       | 作者                                      |
+| ------------------------------------------------ | -------------------------------------------------------- | --------------------------------------- |
+| **每日鉴毛**（`astrbot_plugin_furrywill`）             | 「每日鉴毛」抽卡指令 + AI 工具（随机抽卡、期数 / 名称 / 地区 / 工作室查询），支持卡片图嵌入回复。 | 星见starcatchere                          |
+| **群聊准入（注册码 / 白名单）**（`astrbot_plugin_group_gate`） | 新群需提供注册码或由后台加入白名单才能与机器人对话，未授权群的消息不会进入 AI 对话。             | 星见starcatchere                          |
+| **指令上传面板**（`astrbot_plugin_cmd_uploader`）        | 汇总全部已注册指令，在 WebUI 中按需手动上传为 QQ 官方指令面板，配置持久化保存。            | 星见starcatchere                          |
+| **记忆压缩与上下文管理**（`astrbot_plugin_memory_ctx`）      | 对话结束后压缩并归档会话记忆、分层保留长期记忆，严格控制单会话上下文长度，并提供记忆面板与检索工具。       | 星见starcatchere                          |
+| **情绪表情包**（`emoticon_manager`）                    | 表情包插件，支持情感匹配与 WebUI 管理编辑。                                | @bilibili彩凌，星见starcatchere 二开实现md图片大小调整 |
+
+<br />
 
 ## 快速开始
 
@@ -77,7 +77,9 @@ pnpm dev
 本分支与上游保持一致的部署方式，推荐参考官方文档：
 
 - [Docker / Docker Compose 部署](https://docs.astrbot.app/deploy/astrbot/docker.html)
+
 - [手动部署（基于源码与 uv）](https://docs.astrbot.app/deploy/astrbot/cli.html)
+
 - [宝塔面板](https://docs.astrbot.app/deploy/astrbot/btpanel.html) / [1Panel](https://docs.astrbot.app/deploy/astrbot/1panel.html) / [CasaOS](https://docs.astrbot.app/deploy/astrbot/casaos.html)
 
 ## 支持的平台与模型
@@ -91,8 +93,11 @@ pnpm dev
 ## 许可证与合规
 
 - 本项目基于 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 修改，遵循 **GNU AGPL-3.0-or-later**，完整条款见 [LICENSE](LICENSE)。
+
 - 对本仓库的修改声明、以及内置第三方插件的来源与许可信息，见 [NOTICE](NOTICE)。
+
 - `data/plugins/` 下的插件均为独立作品，各自保留其原有版权与许可（如 `emoticon_manager` 采用 MIT）。若您是权利人并认为某个插件在未获授权的情况下被分发，请联系维护者以便更正或移除。
+
 - 使用本项目还需遵守 [EULA](EULA.md) 与上游项目相关条款。
 
 ## 鸣谢
