@@ -126,13 +126,13 @@ def _extract_text_from_component_chain(
         if isinstance(seg, Plain):
             if seg.text:
                 parts.append(seg.text)
+        elif isinstance(seg, AtAll):
+            parts.append("@全体成员")
         elif isinstance(seg, At):
             if seg.name:
                 parts.append(f"@{seg.name}")
             elif seg.qq:
                 parts.append(f"@{seg.qq}")
-        elif isinstance(seg, AtAll):
-            parts.append("@all")
         elif isinstance(seg, Image):
             parts.append("[Image]")
         elif isinstance(seg, Video):

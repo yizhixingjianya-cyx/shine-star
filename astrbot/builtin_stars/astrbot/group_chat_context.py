@@ -283,6 +283,10 @@ def _describe_chain(chain: list) -> str:
             desc.append(c.text)
         elif isinstance(c, Image):
             desc.append("[Image]")
+        # AtAll 必须在 At 之前判断：AtAll 是 At 的子类，先判断 At 会让
+        # AtAll 分支永远不可达，@全体成员 会被渲染成普通的 [At: all]。
+        elif isinstance(c, AtAll):
+            desc.append("[At: All]")
         elif isinstance(c, At):
             name = getattr(c, "name", "") or getattr(c, "qq", "")
             desc.append(f"[At: {name}]")
@@ -294,8 +298,6 @@ def _describe_chain(chain: list) -> str:
             desc.append(f"[File: {getattr(c, 'name', '') or ''}]")
         elif isinstance(c, Forward):
             desc.append("[Forward]")
-        elif isinstance(c, AtAll):
-            desc.append("[At: All]")
         elif isinstance(c, Face):
             desc.append(f"[Sticker: {getattr(c, 'id', '')}]")
         elif isinstance(c, Reply):
