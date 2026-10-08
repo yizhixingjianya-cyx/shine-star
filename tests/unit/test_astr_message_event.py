@@ -267,8 +267,9 @@ class TestGetMessageOutline:
             session_id="session123",
         )
         outline = event.get_message_outline()
-        # AtAll format is "[At:all]" in the actual implementation
-        assert "[At:" in outline and "all" in outline.lower()
+        # AtAll 是 At 的子类，分支顺序写反会让这里渲染成 [At:all]，
+        # 所以必须精确断言，不能用 "all" in outline 这种宽松写法。
+        assert outline == "[At:全体成员]"
 
     def test_outline_with_face(self, platform_meta, astrbot_message):
         """Test outline with Face component."""

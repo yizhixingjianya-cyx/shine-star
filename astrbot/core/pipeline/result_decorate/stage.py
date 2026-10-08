@@ -419,23 +419,27 @@ class ResultDecorateStage(Stage):
                     )
                     result.chain = [node]
 
-            # at 回复 / 引用回复仅适用于纯文本或图文消息
+            # 引用回复仅适用于纯文本或图文消息：平台普遍不允许对语音、
+            # 合并转发等消息做引用。这个门控必须在插入 @ 之前求值，
+            # 否则刚插入的 At 会让 can_decorate 恒为 False，引用回复被连带关掉。
             can_decorate = all(
                 isinstance(item, (Plain, Image)) for item in result.chain
             )
-            if can_decorate:
-                # at 回复
-                if (
-                    self.reply_with_mention
-                    and event.get_message_type() != MessageType.FRIEND_MESSAGE
-                ):
-                    result.chain.insert(
-                        0,
-                        At(qq=event.get_sender_id(), name=event.get_sender_name()),
-                    )
-                    if len(result.chain) > 1 and isinstance(result.chain[1], Plain):
-                        result.chain[1].text = "\n" + result.chain[1].text
+            if can_decorate and self.reply_with_quote:
+                result.chain.insert(0, Reply(id=event.message_obj.message_id))
 
-                # 引用回复
-                if self.reply_with_quote:
-                    result.chain.insert(0, Reply(id=event.message_obj.message_id))
+            # at 回复：任何消息类型前面都可以 @ 触发者（语音、转发、带引用的
+            # 回复同样支持），因此不参与上面的 can_decorate 门控。此前 @ 与
+            # 引用回复共用同一个「仅纯文本或图文」的门控，一旦 TTS 把 Plain
+            # 换成 Record、或回复本身带 At/Reply/Node，@ 就会被静默跳过，
+            # 表现为「主动回复时应该 @ 触发者，但就是没有 @」。
+            if (
+                self.reply_with_mention
+                and event.get_message_type() != MessageType.FRIEND_MESSAGE
+            ):
+                result.chain.insert(
+                    0,
+                    At(qq=event.get_sender_id(), name=event.get_sender_name()),
+                )
+                if len(result.chain) > 1 and isinstance(result.chain[1], Plain):
+                    result.chain[1].text = "\n" + result.chain[1].text
