@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import json
 from collections.abc import AsyncGenerator
 from dataclasses import replace
 
@@ -455,6 +456,67 @@ class InternalAgentSubStage(Stage):
                     consumed_marked=follow_up_consumed_marked,
                 )
 
+    async def _merge_history_for_write(
+        self,
+        umo: str,
+        conversation_id: str,
+        base_history: list[dict],
+        message_to_save: list[dict],
+    ) -> list[dict]:
+        """Rebase pending messages onto the conversation's current history.
+
+        ``update_conversation`` replaces the stored history wholesale, so writing
+        a snapshot captured before the LLM call can silently discard turns that
+        landed meanwhile. This re-reads the row and appends only the messages this
+        turn actually produced, so concurrent turns in one session compose instead
+        of overwriting each other.
+
+        Args:
+            umo: Unified message origin identifying the session.
+            conversation_id: Conversation to rebase onto.
+            base_history: History this turn started from (its snapshot).
+            message_to_save: Messages this turn wants to persist.
+
+        Returns:
+            The history to write: current stored history plus this turn's new
+            messages. Falls back to ``message_to_save`` when the rebase cannot be
+            done safely.
+        """
+        try:
+            current = await self.conv_manager.get_conversation(umo, conversation_id)
+            if current is None:
+                return message_to_save
+            stored = json.loads(current.history or "[]")
+        except Exception as exc:
+            logger.warning(
+                "history rebase read failed for %s; writing turn snapshot: %s",
+                umo,
+                exc,
+                exc_info=True,
+            )
+            return message_to_save
+
+        # Nothing else touched the row: the snapshot is still authoritative.
+        if stored == base_history:
+            return message_to_save
+
+        # Something changed. Only the suffix this turn appended is new; drop that
+        # suffix from the snapshot and append it to the stored history instead.
+        if stored[: len(base_history)] == base_history:
+            appended = message_to_save[len(base_history) :]
+            return stored + appended
+
+        # The stored history was rewritten (reset, edit, trim) in a way this turn
+        # cannot reconcile against. Preserve the user's visible history rather
+        # than clobbering it with a stale snapshot.
+        logger.warning(
+            "history changed incompatibly during turn for %s; keeping stored "
+            "history and appending this turn's messages",
+            umo,
+        )
+        appended = message_to_save[len(base_history) :]
+        return stored + appended
+
     async def _save_to_history(
         self,
         event: AstrMessageEvent,
@@ -491,10 +553,17 @@ class InternalAgentSubStage(Stage):
                 )
             if has_checkpoint or (llm_response is None and req.tool_calls_result):
                 token_usage = None if has_checkpoint else req.conversation.token_usage
+                base_history = json.loads(req.conversation.history or "[]")
+                history_to_write = await self._merge_history_for_write(
+                    event.unified_msg_origin,
+                    req.conversation.cid,
+                    base_history,
+                    message_to_save,
+                )
                 await self.conv_manager.update_conversation(
                     event.unified_msg_origin,
                     req.conversation.cid,
-                    history=message_to_save,
+                    history=history_to_write,
                     token_usage=token_usage,
                 )
             return
@@ -537,10 +606,17 @@ class InternalAgentSubStage(Stage):
             # token_usage = runner_stats.token_usage.total
             token_usage = llm_response.usage.total if llm_response.usage else None
 
+        base_history = json.loads(req.conversation.history or "[]")
+        history_to_write = await self._merge_history_for_write(
+            event.unified_msg_origin,
+            req.conversation.cid,
+            base_history,
+            message_to_save,
+        )
         await self.conv_manager.update_conversation(
             event.unified_msg_origin,
             req.conversation.cid,
-            history=message_to_save,
+            history=history_to_write,
             token_usage=token_usage,
         )
 

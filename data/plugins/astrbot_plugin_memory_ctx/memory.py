@@ -277,6 +277,36 @@ class MemoryEngine:
             return 0
         return starts[len(starts) - keep_turns]
 
+    def _rebase_folded_prefix(self, old: list, cur_body: list) -> list | None:
+        """Drop the folded prefix from the current body, keeping newer turns.
+
+        Compression snapshots ``old`` (the turns to fold into the summary) and
+        writes back after an LLM call, during which the session lock is released.
+        If new turns arrived in the meantime the folded prefix is no longer at
+        offset 0, but it is usually still present as a contiguous run.
+
+        Args:
+            old: The folded prefix captured during the snapshot phase.
+            cur_body: The conversation body re-read just now.
+
+        Returns:
+            ``cur_body`` with the folded prefix removed, or ``None`` when the
+            prefix cannot be located (the history was rewritten) so the caller
+            must not touch the history.
+        """
+        if not old:
+            return list(cur_body)
+        if cur_body[: len(old)] == old:
+            return list(cur_body[len(old) :])
+        if len(cur_body) < len(old):
+            return None
+        # Find the run in the current body. Only an exact, contiguous match is
+        # accepted, so a partially rewritten history is never silently dropped.
+        for start in range(len(cur_body) - len(old) + 1):
+            if cur_body[start : start + len(old)] == old:
+                return list(cur_body[:start]) + list(cur_body[start + len(old) :])
+        return None
+
     async def _provider_id(self, umo: str) -> str:
         configured = str(self.cfg("compress_provider_id", "") or "").strip()
         if configured:
@@ -620,12 +650,31 @@ class MemoryEngine:
                 cur_head, cur_body = self._split_leading_system(current)
                 _cur_prior, cur_body = self._strip_summary_pairs(cur_body)
                 if cur_body[: len(old)] != old:
-                    self.logger.warning(
-                        f"history changed during compression for {umo}; skipping "
-                        "write-back to avoid dropping messages."
+                    # Turns arrived (or were trimmed) while summarizing, so the
+                    # folded prefix no longer matches at this offset. The summary
+                    # is still valid, so rebase it: locate the folded prefix, and
+                    # if it is still an aligned prefix of the current body, drop
+                    # just that prefix and keep everything after it.
+                    rebased = self._rebase_folded_prefix(old, cur_body)
+                    if rebased is None:
+                        # The old prefix was rewritten (reset / manual edit) and
+                        # cannot be reconciled. Keep the computed summary for the
+                        # long-term store, but leave the history untouched rather
+                        # than dropping messages.
+                        self.logger.warning(
+                            f"history changed during compression for {umo}; "
+                            "skipping history rewrite to avoid dropping messages "
+                            "(long-term memory was still updated)."
+                        )
+                        await self.store.upsert_cursor(umo, last_compress_at=timestamp)
+                        return {"skipped": "history_changed"}
+                    self.logger.info(
+                        f"history changed during compression for {umo}; "
+                        "rebased the folded prefix and kept newer turns."
                     )
-                    return {"skipped": "history_changed"}
-                new_history = list(cur_head) + list(cur_body[len(old) :])
+                    new_history = list(cur_head) + rebased
+                else:
+                    new_history = list(cur_head) + list(cur_body[len(old) :])
                 trimmed, _ = await self.enforce_limit(umo, conversation_id, new_history)
                 await conv_mgr.update_conversation(
                     umo,
